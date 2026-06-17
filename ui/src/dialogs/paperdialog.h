@@ -35,6 +35,9 @@ public:
     Paper getPaper() const;
     void setPaper(const Paper &p);
 
+protected:
+    void accept() override;
+
 private slots:
     void onSelectAuthors();
     void onSelectSource();
@@ -50,6 +53,7 @@ private:
     static QString firstNonEmpty(const QStringList &values);
 
     // 基本信息
+    QLineEdit *m_codeEdit;
     QLineEdit *m_titleEdit;
     QLineEdit *m_keywordsEdit;
     QTextEdit *m_abstractEdit;

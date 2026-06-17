@@ -17,6 +17,9 @@ public:
     void setEntity(const Catalog &cat);
     void setFixedParent(IdType parentId);
 
+protected:
+    void accept() override;
+
 private:
     void setupUi();
     void populateParentCombo();

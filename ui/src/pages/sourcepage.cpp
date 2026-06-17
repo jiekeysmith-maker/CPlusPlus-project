@@ -104,7 +104,7 @@ void SourcePage::onAddJournal()
 {
     SourceDialog dlg(this);
     dlg.setWindowTitle(QStringLiteral("新增期刊"));
-    // 预设为期刊
+    dlg.setForceType(QStringLiteral("Journal"));
     if (dlg.exec() == QDialog::Accepted) {
         LibraryManager::getInstance().addSource(dlg.getSource());
         refreshTable();
@@ -115,7 +115,7 @@ void SourcePage::onAddConference()
 {
     SourceDialog dlg(this);
     dlg.setWindowTitle(QStringLiteral("新增会议"));
-    // 预设为会议
+    dlg.setForceType(QStringLiteral("Conference"));
     if (dlg.exec() == QDialog::Accepted) {
         LibraryManager::getInstance().addSource(dlg.getSource());
         refreshTable();

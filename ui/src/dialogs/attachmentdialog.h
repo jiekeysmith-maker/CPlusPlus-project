@@ -17,6 +17,9 @@ public:
     Attachment getEntity() const;
     void setEntity(const Attachment &att);
 
+protected:
+    void accept() override;
+
 private:
     void setupUi();
 

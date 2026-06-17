@@ -16,6 +16,9 @@ public:
     Author getEntity() const;
     void setEntity(const Author &a);
 
+protected:
+    void accept() override;
+
 private:
     void setupUi();
 

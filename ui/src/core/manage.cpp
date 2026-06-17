@@ -1,6 +1,14 @@
 #include "manage.h"
 
+#include <sstream>
+#include <algorithm>
+#include <fstream>
+
 // ========================= 辅助函数 =========================
+
+// 字段分隔符使用 ASCII 不可见字符 \x1E (Record Separator)
+// 避免用户输入中的 "|" 等可见字符破坏序列化格式
+constexpr char FIELD_SEP = '\x1E';
 
 // 分割字符串：将 "a;b;c" → {"a","b","c"}
 // 设计意图：all实体序列化中用";"分隔数组元素，反序列化时需要此函数还原
@@ -61,44 +69,17 @@ Author::Author(IdType id, const std::string& name, const std::string& gender,
     m_affiliation(affiliation), m_email(email), m_researchAreas(areas) {
 }
 
-void Author::print() const {
-    std::cout << "--- 作者信息 ---\n"
-        << "ID: " << m_id << "\n"
-        << "姓名: " << m_name << "\n"
-        << "性别: " << m_gender << "\n"
-        << "单位: " << m_affiliation << "\n"
-        << "Email: " << m_email << "\n"
-        << "研究领域: " << join(m_researchAreas, ';') << "\n";
-}
-
-bool Author::edit() {
-    std::cout << "(输入 !q 可取消)\n";
-    std::cout << "姓名: ";          std::getline(std::cin, m_name);
-    if (m_name == "!q") return false;
-    std::cout << "性别: ";          std::getline(std::cin, m_gender);
-    if (m_gender == "!q") return false;
-    std::cout << "单位: ";          std::getline(std::cin, m_affiliation);
-    if (m_affiliation == "!q") return false;
-    std::cout << "Email: ";         std::getline(std::cin, m_email);
-    if (m_email == "!q") return false;
-    std::cout << "研究领域(;分隔): "; std::string areas;
-    std::getline(std::cin, areas);
-    if (areas == "!q") return false;
-    m_researchAreas = split(areas, ';');
-    return true;
-}
-
 // 序列化格式: id|name|gender|affiliation|email|area1;area2
 std::string Author::serialize() const {
     std::stringstream ss;
-    ss << m_id << "|" << m_name << "|" << m_gender << "|"
-        << m_affiliation << "|" << m_email << "|"
+    ss << m_id << FIELD_SEP << m_name << FIELD_SEP << m_gender << FIELD_SEP
+        << m_affiliation << FIELD_SEP << m_email << FIELD_SEP
         << join(m_researchAreas, ';');
     return ss.str();
 }
 
 void Author::deserialize(const std::string& json) {
-    auto parts = split(json, '|');
+    auto parts = split(json, FIELD_SEP);
     if (parts.size() >= 6) {
         m_id = std::stoi(parts[0]);
         m_name = parts[1];
@@ -111,60 +92,19 @@ void Author::deserialize(const std::string& json) {
 
 // ========================= Source 实现 =========================
 
-bool Source::edit() {
-    std::cout << "(输入 !q 可取消)\n";
-    std::cout << "简称: ";          std::getline(std::cin, m_shortName);
-    if (m_shortName == "!q") return false;
-    std::cout << "全名: ";          std::getline(std::cin, m_fullName);
-    if (m_fullName == "!q") return false;
-    std::cout << "领域: ";          std::getline(std::cin, m_field);
-    if (m_field == "!q") return false;
-    std::cout << "出版单位: ";      std::getline(std::cin, m_publisher);
-    if (m_publisher == "!q") return false;
-    std::cout << "出版单位地址: ";  std::getline(std::cin, m_publisherAddress);
-    if (m_publisherAddress == "!q") return false;
-    std::cout << "检索类型(SCI/EI/其他): "; std::getline(std::cin, m_retrievalType);
-    if (m_retrievalType == "!q") return false;
-    std::cout << "备注: ";          std::getline(std::cin, m_remark);
-    if (m_remark == "!q") return false;
-    return true;
-}
-
 // ========================= Journal 实现 =========================
-
-void Journal::print() const {
-    std::cout << "--- 学术期刊 ---\n"
-        << "ID: " << m_id << "\n"
-        << "简称: " << m_shortName << "\n"
-        << "全名: " << m_fullName << "\n"
-        << "领域: " << m_field << "\n"
-        << "出版单位: " << m_publisher << "\n"
-        << "单位地址: " << m_publisherAddress << "\n"
-        << "检索类型: " << m_retrievalType << "\n"
-        << "最新影响因子: " << m_latestImpactFactor << "\n"
-        << "备注: " << m_remark << "\n";
-}
-
-bool Journal::edit() {
-    if (!Source::edit()) return false;  // 先编辑基类公共字段
-    std::cout << "最新影响因子: ";
-    std::string tmp; std::getline(std::cin, tmp);
-    if (tmp == "!q") return false;
-    m_latestImpactFactor = std::stod(tmp);
-    return true;
-}
 
 // 序列化格式: id|shortName|fullName|field|publisher|address|retrieval|remark|impactFactor
 std::string Journal::serialize() const {
     std::stringstream ss;
-    ss << m_id << "|" << m_shortName << "|" << m_fullName << "|"
-        << m_field << "|" << m_publisher << "|" << m_publisherAddress << "|"
-        << m_retrievalType << "|" << m_remark << "|" << m_latestImpactFactor;
+    ss << m_id << FIELD_SEP << m_shortName << FIELD_SEP << m_fullName << FIELD_SEP
+        << m_field << FIELD_SEP << m_publisher << FIELD_SEP << m_publisherAddress << FIELD_SEP
+        << m_retrievalType << FIELD_SEP << m_remark << FIELD_SEP << m_latestImpactFactor;
     return ss.str();
 }
 
 void Journal::deserialize(const std::string& json) {
-    auto parts = split(json, '|');
+    auto parts = split(json, FIELD_SEP);
     if (parts.size() >= 9) {
         m_id = std::stoi(parts[0]);
         m_shortName = parts[1];
@@ -180,37 +120,17 @@ void Journal::deserialize(const std::string& json) {
 
 // ========================= Conference 实现 =========================
 
-void Conference::print() const {
-    std::cout << "--- 学术会议 ---\n"
-        << "ID: " << m_id << "\n"
-        << "简称: " << m_shortName << "\n"
-        << "全名: " << m_fullName << "\n"
-        << "领域: " << m_field << "\n"
-        << "开会地址: " << m_meetingAddress << "\n"
-        << "出版单位: " << m_publisher << "\n"
-        << "出版单位地址: " << m_publisherAddress << "\n"
-        << "检索类型: " << m_retrievalType << "\n"
-        << "备注: " << m_remark << "\n";
-}
-
-bool Conference::edit() {
-    if (!Source::edit()) return false;
-    std::cout << "开会地址: "; std::getline(std::cin, m_meetingAddress);
-    if (m_meetingAddress == "!q") return false;
-    return true;
-}
-
 // 序列化格式: id|shortName|fullName|field|publisher|address|retrieval|remark|meetingAddress
 std::string Conference::serialize() const {
     std::stringstream ss;
-    ss << m_id << "|" << m_shortName << "|" << m_fullName << "|"
-        << m_field << "|" << m_publisher << "|" << m_publisherAddress << "|"
-        << m_retrievalType << "|" << m_remark << "|" << m_meetingAddress;
+    ss << m_id << FIELD_SEP << m_shortName << FIELD_SEP << m_fullName << FIELD_SEP
+        << m_field << FIELD_SEP << m_publisher << FIELD_SEP << m_publisherAddress << FIELD_SEP
+        << m_retrievalType << FIELD_SEP << m_remark << FIELD_SEP << m_meetingAddress;
     return ss.str();
 }
 
 void Conference::deserialize(const std::string& json) {
-    auto parts = split(json, '|');
+    auto parts = split(json, FIELD_SEP);
     if (parts.size() >= 9) {
         m_id = std::stoi(parts[0]);
         m_shortName = parts[1];
@@ -231,32 +151,15 @@ Attachment::Attachment(IdType id, const std::string& name, IdType paperId,
     : m_id(id), m_name(name), m_paperId(paperId), m_content(content) {
 }
 
-void Attachment::print() const {
-    std::cout << "--- 附件信息 ---\n"
-        << "ID: " << m_id << "\n"
-        << "名称: " << m_name << "\n"
-        << "所属文献ID: " << m_paperId << "\n"
-        << "内容: " << m_content << "\n";
-}
-
-bool Attachment::edit() {
-    std::cout << "(输入 !q 可取消)\n";
-    std::cout << "附件名称: "; std::getline(std::cin, m_name);
-    if (m_name == "!q") return false;
-    std::cout << "附件内容: "; std::getline(std::cin, m_content);
-    if (m_content == "!q") return false;
-    return true;
-}
-
 // 序列化格式: id|name|paperId|content
 std::string Attachment::serialize() const {
     std::stringstream ss;
-    ss << m_id << "|" << m_name << "|" << m_paperId << "|" << m_content;
+    ss << m_id << FIELD_SEP << m_name << FIELD_SEP << m_paperId << FIELD_SEP << m_content;
     return ss.str();
 }
 
 void Attachment::deserialize(const std::string& json) {
-    auto parts = split(json, '|');
+    auto parts = split(json, FIELD_SEP);
     if (parts.size() >= 4) {
         m_id = std::stoi(parts[0]);
         m_name = parts[1];
@@ -267,89 +170,36 @@ void Attachment::deserialize(const std::string& json) {
 
 // ========================= Paper 实现 =========================
 
-void Paper::print() const {
-    std::cout << "========== 文献信息 ==========\n"
-        << "编号: " << m_id << "\n"
-        << "题目: " << m_title << "\n"
-        << "关键词: " << join(m_keywords, ';') << "\n"
-        << "摘要: " << m_abstract << "\n"
-        << "发表时间: " << m_publishDate << "\n"
-        << "出版物ID: " << m_sourceId << "\n"
-        << "刊期: " << m_issue << "\n"
-        << "刊号: " << m_issueNumber << "\n"
-        << "页码: " << m_pageRange << "\n"
-        << "全文文件: " << m_filePath << "\n"
-        << "备注: " << m_remark << "\n";
-
-    // 显示作者名称（通过LibraryManager外键查询）
-    std::cout << "作者: ";
-    auto& mgr = LibraryManager::getInstance();
-    for (size_t i = 0; i < m_authorIds.size(); ++i) {
-        if (i > 0) std::cout << "; ";
-        std::cout << mgr.getAuthorName(m_authorIds[i]);
-    }
-    std::cout << "\n";
-
-    // 显示出版物名称
-    std::cout << "出版物:" << mgr.getSourceName(m_sourceId) << "\n";
-
-    // 显示附件数量
-    std::cout << "附件数: " << m_attachmentIds.size() << "\n";
-    std::cout << "==============================\n";
-}
-
-bool Paper::edit() {
-    std::cout << "(输入 !q 可取消)\n";
-    std::cout << "题目: "; std::getline(std::cin, m_title);
-    if (m_title == "!q") return false;
-    std::cout << "关键词(;分隔): "; std::string kws;
-    std::getline(std::cin, kws);
-    if (kws == "!q") return false;
-    m_keywords = split(kws, ';');
-    std::cout << "摘要: "; std::getline(std::cin, m_abstract);
-    if (m_abstract == "!q") return false;
-    std::cout << "发表时间(YYYY-MM-DD): "; std::getline(std::cin, m_publishDate);
-    if (m_publishDate == "!q") return false;
-    std::cout << "刊期: "; std::getline(std::cin, m_issue);
-    if (m_issue == "!q") return false;
-    std::cout << "刊号: "; std::getline(std::cin, m_issueNumber);
-    if (m_issueNumber == "!q") return false;
-    std::cout << "页码: "; std::getline(std::cin, m_pageRange);
-    if (m_pageRange == "!q") return false;
-    std::cout << "备注: "; std::getline(std::cin, m_remark);
-    if (m_remark == "!q") return false;
-    return true;
-}
-
-// 序列化格式: id|title|kw1;kw2|abstract|publishDate|sourceId|issue|issueNumber|pageRange|authorIds|attachIds|remark|filePath
+// 序列化格式: id|code|title|kw1;kw2|abstract|publishDate|sourceId|issue|issueNumber|pageRange|authorIds|attachIds|remark|filePath
 std::string Paper::serialize() const {
     std::stringstream ss;
-    ss << m_id << "|" << m_title << "|"
-        << join(m_keywords, ';') << "|" << m_abstract << "|"
-        << m_publishDate << "|" << m_sourceId << "|"
-        << m_issue << "|" << m_issueNumber << "|"
-        << m_pageRange << "|" << joinIds(m_authorIds, ';') << "|"
-        << joinIds(m_attachmentIds, ';') << "|" << m_remark << "|"
+    ss << m_id << FIELD_SEP << m_code << FIELD_SEP << m_title << FIELD_SEP
+        << join(m_keywords, ';') << FIELD_SEP << m_abstract << FIELD_SEP
+        << m_publishDate << FIELD_SEP << m_sourceId << FIELD_SEP
+        << m_issue << FIELD_SEP << m_issueNumber << FIELD_SEP
+        << m_pageRange << FIELD_SEP << joinIds(m_authorIds, ';') << FIELD_SEP
+        << joinIds(m_attachmentIds, ';') << FIELD_SEP << m_remark << FIELD_SEP
         << m_filePath;
     return ss.str();
 }
 
 void Paper::deserialize(const std::string& json) {
-    auto parts = split(json, '|');
-    if (parts.size() >= 12) {
+    auto parts = split(json, FIELD_SEP);
+    if (parts.size() >= 13) {
         m_id = std::stoi(parts[0]);
-        m_title = parts[1];
-        m_keywords = split(parts[2], ';');
-        m_abstract = parts[3];
-        m_publishDate = parts[4];
-        m_sourceId = std::stoi(parts[5]);
-        m_issue = parts[6];
-        m_issueNumber = parts[7];
-        m_pageRange = parts[8];
-        m_authorIds = splitIds(parts[9], ';');
-        m_attachmentIds = splitIds(parts[10], ';');
-        m_remark = parts[11];
-        m_filePath = (parts.size() >= 13) ? parts[12] : "";
+        m_code = parts[1];
+        m_title = parts[2];
+        m_keywords = split(parts[3], ';');
+        m_abstract = parts[4];
+        m_publishDate = parts[5];
+        m_sourceId = std::stoi(parts[6]);
+        m_issue = parts[7];
+        m_issueNumber = parts[8];
+        m_pageRange = parts[9];
+        m_authorIds = splitIds(parts[10], ';');
+        m_attachmentIds = splitIds(parts[11], ';');
+        m_remark = parts[12];
+        m_filePath = (parts.size() >= 14) ? parts[13] : "";
     }
 }
 
@@ -367,42 +217,17 @@ void Catalog::removePaperId(IdType pid) {
         m_paperIds.erase(it);
 }
 
-void Catalog::print() const {
-    std::string indent(m_level * 2, ' ');  // 根据层级缩进，体现嵌套结构
-    std::cout << indent << "[目录] ID: " << m_id
-        << " | 名称: " << m_name
-        << " | 层级: " << m_level << "\n";
-    if (!m_description.empty())
-        std::cout << indent << "  说明: " << m_description << "\n";
-    std::cout << indent << "  父目录ID: " << m_parentId
-        << " | 子目录数: " << m_childIds.size()
-        << " | 文献数: " << m_paperIds.size() << "\n";
-}
-
-bool Catalog::edit() {
-    std::cout << "(输入 !q 可取消)\n";
-    std::cout << "目录名称: "; std::getline(std::cin, m_name);
-    if (m_name == "!q") return false;
-    std::cout << "说明: "; std::getline(std::cin, m_description);
-    if (m_description == "!q") return false;
-    std::cout << "父目录ID(-1为根目录): ";
-    std::string tmp; std::getline(std::cin, tmp);
-    if (tmp == "!q") return false;
-    m_parentId = std::stoi(tmp);
-    return true;
-}
-
 // 序列化格式: id|name|level|description|parentId|childIds|paperIds
 std::string Catalog::serialize() const {
     std::stringstream ss;
-    ss << m_id << "|" << m_name << "|" << m_level << "|"
-        << m_description << "|" << m_parentId << "|"
-        << joinIds(m_childIds, ';') << "|" << joinIds(m_paperIds, ';');
+    ss << m_id << FIELD_SEP << m_name << FIELD_SEP << m_level << FIELD_SEP
+        << m_description << FIELD_SEP << m_parentId << FIELD_SEP
+        << joinIds(m_childIds, ';') << FIELD_SEP << joinIds(m_paperIds, ';');
     return ss.str();
 }
 
 void Catalog::deserialize(const std::string& json) {
-    auto parts = split(json, '|');
+    auto parts = split(json, FIELD_SEP);
     if (parts.size() >= 7) {
         m_id = std::stoi(parts[0]);
         m_name = parts[1];
@@ -829,7 +654,7 @@ bool LibraryManager::saveToFile(const std::string& filePath) const {
     // 写入出版物（含类型标记前缀：JOURNAL|... 或 CONFERENCE|...）
     ofs << SECTION_SOURCES << "\n";
     for (const auto& pair : m_sources) {
-        ofs << pair.second->getType() << "|" << pair.second->serialize() << "\n";
+        ofs << pair.second->getType() << FIELD_SEP << pair.second->serialize() << "\n";
     }
 
     // 写入文献
@@ -880,13 +705,13 @@ bool LibraryManager::loadFromFile(const std::string& filePath) {
         }
         else if (currentSection == SECTION_SOURCES) {
             // 出版物格式: Journal|... 或 Conference|...
-            auto parts = split(line, '|');
+            auto parts = split(line, FIELD_SEP);
             if (parts.size() < 2) continue;
             std::string type = parts[0];
             // 重组剩余部分为原始序列化串
             std::string rest;
             for (size_t i = 1; i < parts.size(); ++i) {
-                if (i > 1) rest += "|";
+                if (i > 1) rest += FIELD_SEP;
                 rest += parts[i];
             }
 

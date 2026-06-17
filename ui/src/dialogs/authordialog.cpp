@@ -48,6 +48,20 @@ void AuthorDialog::setupUi()
     mainLayout->addWidget(buttonBox);
 }
 
+void AuthorDialog::accept()
+{
+    if (m_nameEdit->text().trimmed().isEmpty()) {
+        m_nameEdit->setFocus();
+        return;
+    }
+    QString email = m_emailEdit->text().trimmed();
+    if (!email.isEmpty() && !email.contains('@')) {
+        m_emailEdit->setFocus();
+        return;
+    }
+    QDialog::accept();
+}
+
 Author AuthorDialog::getEntity() const
 {
     Author a;
