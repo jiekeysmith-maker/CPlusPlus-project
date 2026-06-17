@@ -19,6 +19,26 @@ set(PROJECT_SOURCES
         src/app/mainwindow.ui
         src/core/manage.h
         src/core/manage.cpp
+        src/core/CoreTypes.h
+        src/core/Serializable.h
+        src/core/SerializationUtils.h
+        src/core/SerializationUtils.cpp
+        src/core/Author.h
+        src/core/Author.cpp
+        src/core/Source.h
+        src/core/Journal.h
+        src/core/Journal.cpp
+        src/core/Conference.h
+        src/core/Conference.cpp
+        src/core/Attachment.h
+        src/core/Attachment.cpp
+        src/core/Paper.h
+        src/core/Paper.cpp
+        src/core/Catalog.h
+        src/core/Catalog.cpp
+        src/core/LibraryException.h
+        src/core/LibraryManager.h
+        src/core/LibraryManager.cpp
         src/pages/authorpage.h
         src/pages/authorpage.cpp
         src/pages/sourcepage.h
