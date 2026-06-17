@@ -65,6 +65,15 @@ void CatalogDialog::setFixedParent(IdType parentId)
     m_parentCombo->setEnabled(false);
 }
 
+void CatalogDialog::accept()
+{
+    if (m_nameEdit->text().trimmed().isEmpty()) {
+        m_nameEdit->setFocus();
+        return;
+    }
+    QDialog::accept();
+}
+
 Catalog CatalogDialog::getEntity() const
 {
     Catalog cat;

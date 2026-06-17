@@ -18,6 +18,10 @@ public:
 
     std::shared_ptr<Source> getSource() const;
     void setSource(const Source &src);
+    void setForceType(const QString& type);
+
+protected:
+    void accept() override;
 
 private slots:
     void onTypeChanged(int index);

@@ -51,6 +51,19 @@ void AttachmentDialog::setupUi()
     mainLayout->addWidget(buttonBox);
 }
 
+void AttachmentDialog::accept()
+{
+    if (m_nameEdit->text().trimmed().isEmpty()) {
+        m_nameEdit->setFocus();
+        return;
+    }
+    if (m_paperCombo->currentData().toInt() == INVALID_ID) {
+        m_paperCombo->setFocus();
+        return;
+    }
+    QDialog::accept();
+}
+
 Attachment AttachmentDialog::getEntity() const
 {
     Attachment att;

@@ -10,12 +10,6 @@
 #include <map>
 #include <memory>
 #include <stdexcept>
-#include <sstream>
-#include <algorithm>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <functional>
 
 // 前向声明（用于解决循环依赖）
 class LibraryManager;
@@ -68,10 +62,8 @@ public:
     void setResearchAreas(const std::vector<std::string>& areas) { m_researchAreas = areas; }
 
     // 控制台显示
-    void print() const;
 
     // 交互式编辑 (控制台或可被GUI替代)
-    bool edit();
 
     // 序列化实现
     std::string serialize() const override;
@@ -97,9 +89,6 @@ public:
     // 纯虚函数：区分期刊或会议
     virtual std::string getType() const = 0;
 
-    // 纯虚函数：控制台显示（多态）
-    virtual void print() const = 0;
-
     // 通用访问器
     IdType getId() const { return m_id; }
     void setId(IdType id) { m_id = id; }
@@ -117,8 +106,6 @@ public:
     void setRetrievalType(const std::string& type) { m_retrievalType = type; }
     const std::string& getRemark() const { return m_remark; }
     void setRemark(const std::string& remark) { m_remark = remark; }
-
-    virtual bool edit();   // 通用编辑，派生类可覆盖
 };
 
 // ========================= 3. 期刊 (继承 Source) =========================
@@ -131,8 +118,6 @@ public:
     double getImpactFactor() const { return m_latestImpactFactor; }
     void setImpactFactor(double ifactor) { m_latestImpactFactor = ifactor; }
 
-    void print() const override;
-    bool edit() override;
     std::string serialize() const override;
     void deserialize(const std::string& json) override;
 };
@@ -146,8 +131,6 @@ public:
     const std::string& getMeetingAddress() const { return m_meetingAddress; }
     void setMeetingAddress(const std::string& addr) { m_meetingAddress = addr; }
 
-    void print() const override;
-    bool edit() override;
     std::string serialize() const override;
     void deserialize(const std::string& json) override;
 };
@@ -173,8 +156,6 @@ public:
     const std::string& getContent() const { return m_content; }
     void setContent(const std::string& content) { m_content = content; }
 
-    void print() const;
-    bool edit();
     std::string serialize() const override;
     void deserialize(const std::string& json) override;
 };
@@ -183,6 +164,7 @@ public:
 class Paper : public Serializable {
 private:
     IdType m_id;
+    std::string m_code;               // 文献编号 (DOI/自定义编号)
     std::string m_title;
     std::vector<std::string> m_keywords;
     std::string m_abstract;
@@ -202,6 +184,8 @@ public:
     // getters & setters
     IdType getId() const { return m_id; }
     void setId(IdType id) { m_id = id; }
+    const std::string& getCode() const { return m_code; }
+    void setCode(const std::string& code) { m_code = code; }
     const std::string& getTitle() const { return m_title; }
     void setTitle(const std::string& title) { m_title = title; }
     const std::vector<std::string>& getKeywords() const { return m_keywords; }
@@ -229,8 +213,6 @@ public:
     const std::string& getRemark() const { return m_remark; }
     void setRemark(const std::string& remark) { m_remark = remark; }
 
-    void print() const;
-    bool edit();
     std::string serialize() const override;
     void deserialize(const std::string& json) override;
 };
@@ -270,8 +252,6 @@ public:
 
     bool isRoot() const { return m_parentId == INVALID_ID; }
 
-    void print() const;
-    bool edit();
     std::string serialize() const override;
     void deserialize(const std::string& json) override;
 };

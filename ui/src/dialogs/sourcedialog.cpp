@@ -88,6 +88,24 @@ void SourceDialog::onTypeChanged(int index)
     m_typeStack->setCurrentIndex(index);
 }
 
+void SourceDialog::accept()
+{
+    if (m_shortNameEdit->text().trimmed().isEmpty()) {
+        m_shortNameEdit->setFocus();
+        return;
+    }
+    QDialog::accept();
+}
+
+void SourceDialog::setForceType(const QString& type)
+{
+    int idx = m_typeCombo->findData(type);
+    if (idx >= 0) {
+        m_typeCombo->setCurrentIndex(idx);
+        m_typeCombo->setEnabled(false);
+    }
+}
+
 std::shared_ptr<Source> SourceDialog::getSource() const
 {
     if (m_typeCombo->currentData().toString() == "Journal") {

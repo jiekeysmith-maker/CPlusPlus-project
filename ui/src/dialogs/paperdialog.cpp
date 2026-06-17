@@ -182,6 +182,8 @@ void PaperDialog::setupUi()
     // ---- Tab 1: 基本信息 ----
     auto *tabBasic = new QWidget;
     auto *formBasic = new QFormLayout(tabBasic);
+    m_codeEdit     = new QLineEdit;
+    m_codeEdit->setPlaceholderText(QStringLiteral("如 DOI 或自定义编号"));
     m_titleEdit     = new QLineEdit;
     m_keywordsEdit  = new QLineEdit;
     m_keywordsEdit->setPlaceholderText(QStringLiteral("多个关键词用分号(;)分隔"));
@@ -197,6 +199,7 @@ void PaperDialog::setupUi()
     m_btnSelectFile = new QPushButton(QStringLiteral("选择全文文件..."));
     m_remarkEdit    = new QLineEdit;
 
+    formBasic->addRow(QStringLiteral("编号:"), m_codeEdit);
     formBasic->addRow(QStringLiteral("标题:"), m_titleEdit);
     formBasic->addRow(QStringLiteral("关键词:"), m_keywordsEdit);
     formBasic->addRow(QStringLiteral("摘要:"), m_abstractEdit);
@@ -356,9 +359,19 @@ void PaperDialog::onSelectFile()
     }
 }
 
+void PaperDialog::accept()
+{
+    if (m_titleEdit->text().trimmed().isEmpty()) {
+        m_titleEdit->setFocus();
+        return;
+    }
+    QDialog::accept();
+}
+
 Paper PaperDialog::getPaper() const
 {
     Paper p;
+    p.setCode(m_codeEdit->text().toStdString());
     p.setTitle(m_titleEdit->text().toStdString());
     p.setPublishDate(m_dateEdit->text().toStdString());
     p.setIssue(m_issueEdit->text().toStdString());
@@ -388,6 +401,7 @@ Paper PaperDialog::getPaper() const
 
 void PaperDialog::setPaper(const Paper &p)
 {
+    m_codeEdit->setText(QString::fromStdString(p.getCode()));
     m_titleEdit->setText(QString::fromStdString(p.getTitle()));
     m_dateEdit->setText(QString::fromStdString(p.getPublishDate()));
     m_issueEdit->setText(QString::fromStdString(p.getIssue()));

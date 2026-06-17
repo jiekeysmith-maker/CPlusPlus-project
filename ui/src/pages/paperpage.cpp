@@ -47,9 +47,10 @@ PaperPage::PaperPage(QWidget *parent)
     toolbar->addWidget(m_btnShowAll);
 
     m_table = new QTableWidget;
-    m_table->setColumnCount(9);
+    m_table->setColumnCount(10);
     QStringList headers;
     headers << QStringLiteral("ID")
+            << QStringLiteral("编号")
             << QStringLiteral("标题")
             << QStringLiteral("关键词")
             << QStringLiteral("发表时间")
@@ -89,6 +90,8 @@ void PaperPage::populateTable(const std::vector<Paper> &papers)
         idItem->setData(Qt::UserRole, p.getId());
         m_table->setItem(static_cast<int>(row), 0, idItem);
         m_table->setItem(static_cast<int>(row), 1,
+            new QTableWidgetItem(QString::fromStdString(p.getCode())));
+        m_table->setItem(static_cast<int>(row), 2,
             new QTableWidgetItem(QString::fromStdString(p.getTitle())));
 
         QString kws;
@@ -96,18 +99,18 @@ void PaperPage::populateTable(const std::vector<Paper> &papers)
             if (i > 0) kws += "; ";
             kws += QString::fromStdString(p.getKeywords()[i]);
         }
-        m_table->setItem(static_cast<int>(row), 2, new QTableWidgetItem(kws));
-        m_table->setItem(static_cast<int>(row), 3,
-            new QTableWidgetItem(QString::fromStdString(p.getPublishDate())));
+        m_table->setItem(static_cast<int>(row), 3, new QTableWidgetItem(kws));
         m_table->setItem(static_cast<int>(row), 4,
-            new QTableWidgetItem(QString::fromStdString(mgr.getSourceName(p.getSourceId()))));
+            new QTableWidgetItem(QString::fromStdString(p.getPublishDate())));
         m_table->setItem(static_cast<int>(row), 5,
-            new QTableWidgetItem(QString::number(p.getAuthorIds().size())));
+            new QTableWidgetItem(QString::fromStdString(mgr.getSourceName(p.getSourceId()))));
         m_table->setItem(static_cast<int>(row), 6,
-            new QTableWidgetItem(QString::fromStdString(p.getIssue())));
+            new QTableWidgetItem(QString::number(p.getAuthorIds().size())));
         m_table->setItem(static_cast<int>(row), 7,
-            new QTableWidgetItem(QString::fromStdString(p.getPageRange())));
+            new QTableWidgetItem(QString::fromStdString(p.getIssue())));
         m_table->setItem(static_cast<int>(row), 8,
+            new QTableWidgetItem(QString::fromStdString(p.getPageRange())));
+        m_table->setItem(static_cast<int>(row), 9,
             new QTableWidgetItem(p.getFilePath().empty()
                 ? QStringLiteral("未上传")
                 : QStringLiteral("已上传")));
