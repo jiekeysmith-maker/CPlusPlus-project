@@ -135,8 +135,12 @@ void MainWindow::setupUi()
     m_sidebar->setAcceptDrops(true);
     m_sidebar->viewport()->setAcceptDrops(true);
     m_sidebar->viewport()->installEventFilter(this);
+    m_sidebar->setContextMenuPolicy(Qt::CustomContextMenu);
 
     applyTreeStyle();
+
+    connect(m_sidebar, &QWidget::customContextMenuRequested,
+            this, &MainWindow::onCatalogContextMenu);
     rebuildCatalogTree();
     selectSystemNode(QStringLiteral("all"));
 }
@@ -174,14 +178,6 @@ void MainWindow::setupToolbar()
 
     m_deletePaperAction = toolbar->addAction(QStringLiteral("删除文献"));
     connect(m_deletePaperAction, &QAction::triggered, this, &MainWindow::onDeletePaper);
-
-    toolbar->addSeparator();
-
-    m_addCatalogAction = toolbar->addAction(QStringLiteral("添加目录"));
-    connect(m_addCatalogAction, &QAction::triggered, this, &MainWindow::onAddCatalog);
-
-    m_deleteCatalogAction = toolbar->addAction(QStringLiteral("删除目录"));
-    connect(m_deleteCatalogAction, &QAction::triggered, this, &MainWindow::onDeleteCatalog);
 
     toolbar->addSeparator();
 
@@ -639,6 +635,31 @@ void MainWindow::onDeleteCatalog()
     selectSystemNode(QStringLiteral("all"));
     refreshPaperTable();
     showStatus(QStringLiteral("已删除目录"));
+}
+
+void MainWindow::onCatalogContextMenu(const QPoint &pos)
+{
+    QTreeWidgetItem *item = m_sidebar->itemAt(pos);
+    QMenu menu(m_sidebar);
+
+    if (item && isUserCatalogNode(item)) {
+        // Right-click on user catalog
+        m_sidebar->setCurrentItem(item);
+        QAction *actAddChild = menu.addAction(QStringLiteral("添加子目录"));
+        QAction *actDelete = menu.addAction(QStringLiteral("删除目录"));
+
+        connect(actAddChild, &QAction::triggered, this, &MainWindow::onAddCatalog);
+        connect(actDelete, &QAction::triggered, this, &MainWindow::onDeleteCatalog);
+    } else if (item && isSystemNode(item)) {
+        // Right-click on system nodes (我的文库/全部文献/最近添加)
+        m_sidebar->setCurrentItem(item);
+        QAction *actAdd = menu.addAction(QStringLiteral("添加目录"));
+        connect(actAdd, &QAction::triggered, this, &MainWindow::onAddCatalog);
+    } else {
+        return;
+    }
+
+    menu.exec(m_sidebar->viewport()->mapToGlobal(pos));
 }
 
 void MainWindow::onOpenPaperAttachment(int row, int column)

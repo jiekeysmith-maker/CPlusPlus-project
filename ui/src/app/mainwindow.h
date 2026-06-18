@@ -47,6 +47,7 @@ private slots:
     void onDeletePaper();
     void onAddCatalog();
     void onDeleteCatalog();
+    void onCatalogContextMenu(const QPoint &pos);
     void onOpenPaperAttachment(int row, int column);
     void onSave();
     void onLoad();
@@ -104,8 +105,6 @@ private:
     QAction *m_addPaperAction = nullptr;
     QAction *m_editPaperAction = nullptr;
     QAction *m_deletePaperAction = nullptr;
-    QAction *m_addCatalogAction = nullptr;
-    QAction *m_deleteCatalogAction = nullptr;
     QAction *m_saveAction = nullptr;
     QAction *m_loadAction = nullptr;
     QPushButton *m_searchButton = nullptr;
