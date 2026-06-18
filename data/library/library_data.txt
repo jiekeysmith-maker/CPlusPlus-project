@@ -1,176 +1,0 @@
-[AUTHORS]
--1
-1pxB
-2]¶Sù
-3(b) Stronger strategies
-4Figure
-5: Comparisons of KD
-6our proposed DIST on ImageNet with different teachers. (a) The
-7Recently, a few studies [
-8] have been performed to address the poor learning issue of
-9the student network when the student
-10teacher model sizes signicantly differ. For example,
-11TAKD [
-12] proposes to reduce the discrepancy of teacher
-13student by resorting to an additional
-14teaching assistant of moderate model size
-15DGKD [
-16] further improves TAKD by densely gathering
-17strategies to derive a stronger teacher
-18their effect on KD. Most importantly, a generic enough
-19individually.
-20To understand what makes a stronger teacher
-21their effect on KD, we systematically study the
-22prevalent strategies for designing
-23training deep neural networks,
-24show that:
-25training strategies,
-26e.g.
-27, label smoothing
-28data augmentation [
-29]. However, given a
-30than training from scratch without KD, as shown in Figure
-31The discrepancy between teacher
-32student tends to get fairly larger when we switch
-33predictions via KL divergence could be challenging
-34lead to the failure of vanilla KD.
-35Preserving the
-36relation of predictions
-37between teacher
-38student is sufcient
-39effective.
-40the absolute values accurately. Correlation between teacher
-41student predictions could be
-42favored to relax the exact match of KL divergence
-43distill the intrinsic relations.
-44In this paper, we thus leverage the Pearson correlation coefcient [
-45] as a new match manner to
-46replace the KL divergence. In addition, besides the
-47inter-class relations
-48in prediction vector (see
-49to each class, we also propose to distill the
-50intra-class relations
-51for further boosting the performance
-52DIST) is super simple, efcient,
-53practical, which can be implemented with only several lines of
-54code (see Appendix A.1 )
-55has almost the same training cost as the vanilla KD. As a result, the
-56guided appropriately to distill those truly informative relations.
-57tasks, including image classication, object detection,
-58semantic segmentation. Experimental
-59results show that our DIST signicantly outperforms vanilla KD
-60those sophisticatedly-designed
-61(a) KL div. (
-62(b) KL div. (
-63on ImageNet validation set.
-64R18B
-65represents ResNet-18 trained with strategy B1 for instance.
-66Details of training strategies B
-67B2 refer to Table
-68achieves the highest
-69.07% accuracy on ResNet-18. With the stronger strategy, our method obtains
-70.3% accuracy on the recent transformer Swin-T [
-71], improving KD by
-72Revisiting Prediction Match of KD
-73In vanilla knowledge distillation [
-74], the knowledge is transferred from a pre-trained teacher model
-75student models.
-76Formally, with the logits
-77of student
-78teacher networks, where
-79denote batch size
-80the number of classes, respectively, the vanilla KD loss [
-81] is
-82represented as
-83KD
-84KL
-85constrastive objective encourages the teacher
-86student to map the same input to close representations (in
-87some metric space),
-88different inputs to distant representations, as indicated in the shaded circle.
-89student
-90evolved mostly independently:
-91knowledge distillation
-92representation learning
-93. This connection
-94on knowledge distillation. Our contributions are:
-95. Applications to model compression, cross-modal transfer,
-96ensemble distillation.
-97Benchmarking
-98recent distillation methods
-99CRD outperforms all other methods, e.g.,
-100% average relative improvement over the original KD ( Hinton et al.
-101, which,
-102surprisingly, performs the second best.
-103ELATED WORK
-104The seminal work of Bucilu
-105a et al.
-106Hinton et al.
-107) introduced the idea of knowledge
-108allows slop" in model size,
-109potentially faster learning. But computation
-110memory constraints
-111at inference time necessitate the use of smaller models. Bucilu
-112) achieve this by matching
-113output logits
-114) introduced the idea of temperature in the softmax outputs to better
-115useful information about the learned representation of the teacher model
-116some tradeoff between
-117of knowledge between student
-118teacher. The method in ( Li et al.
-119) was also closely related to
-120Attention transfer ( Zagoruyko & Komodakis
-121a ) focuses on the features maps of the network
-122Average relative improvement =
-123Acc
-124crd
-125van
-126, where
-127represent the
-128accuracies of CRD, KD,
-129vanilla training of the
-130-th student model, respectively.
-131of the student network. Since Zagoruyko & Komodakis
-132a ) do a weighted form of this regression,
-133they tend to perform better. Other papers ( Yim et al.
-134Huang & Wang
-135Kim et al.
-136Yim et al.
-137Ahn et al.
-138Koratana et al.
-139) have enforced various
-140used in CMC ( Tian et al.
-141). But we derive from a different perspective
-142give a rigorous
-143InfoNCE
-144NCE objectives introduced in ( Oord et al.
-145Gutmann & Hyvärinen
-146). Oord
-147et al.
-148is used in ( Hjelm et al.
-149). InfoNCE
-150NCE are closely related but distinct from adversarial
-151learning ( Goodfellow et al.
-152). In ( Goodfellow
-153), it is shown that the NCE objective of
-154) can lead to maximum likelihood learning, but not the adversarial
-155objective.
-156ETHOD
-157space for positive pairs
-158push apart the representation between negative pairs. Fig.1 gives a
-159Geoffrey Hinton
-160Oriol Vinyals
-161Jeff Dean
-162Pritam Sarkar, Ali Etemad
-163Huiyuan Tian
-164Bonan Xu
-165Shijian Li
-166Gang Pan
-167Pritam Sarkar
-168Ali Etemad
-169one modality (e.g.
-[SOURCES]
-[PAPERS]
-1arXiv:1503.02531v1Distilling the Knowledge in a Neural NetworkA very simple way to improve the performance of almost any mac hine learning algorithm is to train many different models on the same data a nd then to average their predictions [3]. Unfortunately, making predictions using a whole ensemble of models is cumbersome and may be too computationally expen sive to allow de- ployment to a large number of users, especially if the indivi dual models are large neural nets. Caruana and his collaborators [1] have shown th at it is possible to compress the knowledge in an ensemble into a single model whi ch is much eas- ier to deploy and we develop this approach further using a dif ferent compression technique. We achieve some surprising results on MNIST and w e show that we can signicantly improve the acoustic model of a heavily use d commercial system by distilling the knowledge in an ensemble of models into a si ngle model. We also introduce a new type of ensemble composed of one or more full m odels and many specialist models which learn to distinguish ne-grained c lasses that the full mod- els confuse. Unlike a mixture of experts, these specialist m odels can be trained rapidly and in parallel.2015--0-3--1arXivarXiv:1503.02531v11-9159;160;161D:/CPlusPlus-project/data/pdfs/（1）知识蒸馏论文（开山篇）.pdf2026-06-18 17:15:28
-[ATTACHMENTS]
-[CATALOGS]
