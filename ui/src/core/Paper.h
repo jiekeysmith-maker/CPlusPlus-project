@@ -22,6 +22,7 @@ private:
     std::vector<IdType> m_authorIds;
     std::vector<IdType> m_attachmentIds;
     std::string m_filePath;
+    std::string m_uploadTime;
     std::string m_remark;
 
 public:
@@ -55,6 +56,8 @@ public:
     void addAttachmentId(IdType attId) { m_attachmentIds.push_back(attId); }
     const std::string& getFilePath() const { return m_filePath; }
     void setFilePath(const std::string& path) { m_filePath = path; }
+    const std::string& getUploadTime() const { return m_uploadTime; }
+    void setUploadTime(const std::string& time) { m_uploadTime = time; }
     const std::string& getRemark() const { return m_remark; }
     void setRemark(const std::string& remark) { m_remark = remark; }
 

@@ -5,12 +5,14 @@ project(ui VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOMOC_COMPILER_PREDEFINES OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(ZLIB QUIET)
 
 set(PROJECT_SOURCES
         src/app/main.cpp
@@ -92,6 +94,30 @@ else()
 endif()
 
 target_link_libraries(ui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+if(ZLIB_FOUND)
+    target_link_libraries(ui PRIVATE ZLIB::ZLIB)
+elseif(MINGW)
+    target_link_libraries(ui PRIVATE z)
+endif()
+
+if(WIN32 AND QT_VERSION_MAJOR EQUAL 6)
+    get_target_property(QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(QT_BIN_DIR "${QMAKE_EXECUTABLE}" DIRECTORY)
+    find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${QT_BIN_DIR}")
+
+    if(WINDEPLOYQT_EXECUTABLE)
+        add_custom_command(TARGET ui POST_BUILD
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}"
+                    --release
+                    --compiler-runtime
+                    --no-translations
+                    --no-system-d3d-compiler
+                    --no-opengl-sw
+                    "$<TARGET_FILE:ui>"
+            COMMENT "Deploying Qt runtime dependencies"
+        )
+    endif()
+endif()
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an

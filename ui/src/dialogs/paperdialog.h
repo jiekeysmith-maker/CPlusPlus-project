@@ -2,6 +2,7 @@
 #define PAPERDIALOG_H
 
 #include <QDialog>
+#include <QByteArray>
 #include <QMap>
 #include <QString>
 #include <QStringList>
@@ -15,15 +16,25 @@ class QPushButton;
 
 struct PdfMetadata
 {
+    QString doi;
     QString title;
     QString author;
     QString keywords;
     QString subject;
     QString publicationDate;
+    QString issue;
+    QString issueNumber;
     QString pageRange;
     QString abstract;
     QString rawText;
-    bool isValid() const { return !title.isEmpty() || !author.isEmpty() || !keywords.isEmpty() || !subject.isEmpty(); }
+    bool isValid() const
+    {
+        return !doi.isEmpty() || !title.isEmpty() || !author.isEmpty()
+            || !keywords.isEmpty() || !subject.isEmpty()
+            || !publicationDate.isEmpty() || !issue.isEmpty()
+            || !issueNumber.isEmpty() || !pageRange.isEmpty()
+            || !abstract.isEmpty();
+    }
 };
 
 class PaperDialog : public QDialog
@@ -49,8 +60,31 @@ private:
     PdfMetadata extractPdfMetadata(const QString &filePath) const;
     void applyPdfMetadata(const PdfMetadata &metadata);
     static QString decodePdfLiteralString(const QString &value);
+    static QByteArray decodePdfLiteralBytes(const QString &value);
+    static QString decodePdfHexString(const QString &value);
+    static QString decodePdfBytes(const QByteArray &bytes);
+    static QString decodePdfValue(const QString &value);
     static QString normalizePdfDate(const QString &value);
     static QString firstNonEmpty(const QStringList &values);
+    static QString extractPdfTextWithExternalTool(const QString &filePath);
+    static QString extractPdfTextFromPdfData(const QByteArray &data);
+    static QString extractPdfTextFromContentStream(const QByteArray &stream);
+    static QByteArray inflatePdfStream(const QByteArray &stream);
+    static QString normalizeExtractedPdfText(const QString &text);
+    static QString extractDoiFromPdfText(const QString &text);
+    static QString extractArxivIdFromPdfText(const QString &text);
+    static QString extractVenueFromPdfText(const QString &text);
+    static QString extractIssueNumberFromPdfText(const QString &text);
+    static QString extractPublicationDateFromPdfText(const QString &text);
+    static QString extractAbstractFromPdfText(const QString &text);
+    static QString extractKeywordsFromPdfText(const QString &text);
+    static QStringList firstMeaningfulPdfLines(const QString &text);
+    static bool isWeakPdfTitle(const QString &value);
+    static QString extractTitleFromPdfText(const QStringList &chunks);
+    static QString extractAuthorsFromPdfText(const QStringList &chunks, const QString &title);
+    static QStringList splitAuthorNames(const QString &value);
+    IdType findOrCreateAuthor(const QString &name) const;
+    void refreshSelectedAuthorList();
 
     // 基本信息
     QLineEdit *m_codeEdit;
@@ -63,6 +97,7 @@ private:
     QLineEdit *m_pageEdit;
     QLineEdit *m_filePathEdit;
     QPushButton *m_btnSelectFile;
+    QLineEdit *m_uploadTimeEdit;
     QLineEdit *m_remarkEdit;
 
     // 作者与出版物
