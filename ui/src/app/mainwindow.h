@@ -10,6 +10,7 @@
 
 class QCloseEvent;
 class QEvent;
+class QLabel;
 class QLineEdit;
 class QPushButton;
 class QTreeWidget;
@@ -48,6 +49,9 @@ private slots:
     void onAddCatalog();
     void onDeleteCatalog();
     void onOpenPaperAttachment(int row, int column);
+    void onViewPaperDetail();
+    void onPaperSelectionChanged();
+    void onOpenDetailAttachment();
     void onSave();
     void onLoad();
 
@@ -67,9 +71,12 @@ private:
     void setupUi();
     void setupMenuBar();
     void setupToolbar();
+    void setupDetailPanel();
     void rebuildCatalogTree();
     void refreshPaperTable();
     void updatePaperTable(const std::vector<Paper> &papers);
+    void updateDetailPanel(IdType paperId);
+    void clearDetailPanel();
     std::vector<Paper> collectCurrentPapers() const;
     std::vector<Paper> filterPapers(const std::vector<Paper> &papers, const QString &keyword) const;
     QString paperAuthorsText(const Paper &paper) const;
@@ -91,6 +98,8 @@ private:
     void applyTreeStyle();
     bool saveDefaultData();
     bool loadDefaultData();
+    bool migrateLegacyDataIfNeeded();
+    void migrateLegacyPaperFiles(const QString &legacyDataPath);
     QString defaultDataFilePath() const;
     QString defaultUploadTime() const;
     QTreeWidgetItem *findNodeByKey(const QString &key) const;
@@ -98,9 +107,18 @@ private:
     Ui::MainWindow *ui = nullptr;
     QTreeWidget *m_sidebar = nullptr;
     QTableWidget *m_table = nullptr;
+    QWidget *m_detailPanel = nullptr;
+    QLabel *m_detailTitleLabel = nullptr;
+    QLabel *m_detailAuthorsLabel = nullptr;
+    QLabel *m_detailSourceLabel = nullptr;
+    QLabel *m_detailPublishDateLabel = nullptr;
+    QLabel *m_detailUploadTimeLabel = nullptr;
+    QLabel *m_detailKeywordsLabel = nullptr;
+    QLabel *m_detailFilePathLabel = nullptr;
     QLineEdit *m_searchEdit = nullptr;
     QString m_defaultDataPath;
     QString m_currentNodeKey;
+    IdType m_detailPaperId = INVALID_ID;
     QAction *m_addPaperAction = nullptr;
     QAction *m_editPaperAction = nullptr;
     QAction *m_deletePaperAction = nullptr;
@@ -108,6 +126,8 @@ private:
     QAction *m_deleteCatalogAction = nullptr;
     QAction *m_saveAction = nullptr;
     QAction *m_loadAction = nullptr;
+    QPushButton *m_viewDetailButton = nullptr;
+    QPushButton *m_openDetailAttachmentButton = nullptr;
     QPushButton *m_searchButton = nullptr;
     QPushButton *m_showAllButton = nullptr;
 };

@@ -41,6 +41,8 @@ set(PROJECT_SOURCES
         src/core/LibraryException.h
         src/core/LibraryManager.h
         src/core/LibraryManager.cpp
+        src/core/StoragePaths.h
+        src/core/StoragePaths.cpp
         src/pages/authorpage.h
         src/pages/authorpage.cpp
         src/pages/sourcepage.h

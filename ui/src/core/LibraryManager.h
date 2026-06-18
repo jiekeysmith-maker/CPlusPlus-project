@@ -86,6 +86,8 @@ public:
 
     bool saveToFile(const std::string& filePath) const;
     bool loadFromFile(const std::string& filePath);
+    bool saveToDirectory(const std::string& directoryPath) const;
+    bool loadFromDirectory(const std::string& directoryPath);
 
     void clearAll();
 };

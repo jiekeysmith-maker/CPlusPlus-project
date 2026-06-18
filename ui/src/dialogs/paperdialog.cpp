@@ -16,7 +16,6 @@
 #include <QFile>
 #include <QDir>
 #include <QDateTime>
-#include <QCoreApplication>
 #include <QStandardPaths>
 #include <QProcess>
 #include <QRegularExpression>
@@ -25,6 +24,8 @@
 
 #include <algorithm>
 #include <cstring>
+
+#include "StoragePaths.h"
 
 #if __has_include(<zlib.h>)
 #include <zlib.h>
@@ -458,13 +459,10 @@ void PaperDialog::onSelectFile()
         return;
     }
 
-    QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (dataDir.isEmpty()) {
-        dataDir = QCoreApplication::applicationDirPath() + QStringLiteral("/data");
+    QDir dir(StoragePaths::pdfDirectoryPath());
+    if (!dir.exists()) {
+        dir.mkpath(QStringLiteral("."));
     }
-    QDir dir(dataDir);
-    dir.mkpath(QStringLiteral("papers"));
-    dir.cd(QStringLiteral("papers"));
 
     QFileInfo info(sourcePath);
     QString targetName = info.fileName();

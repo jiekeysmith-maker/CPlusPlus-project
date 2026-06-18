@@ -3,6 +3,7 @@
 #include "SerializationUtils.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 
 LibraryManager::LibraryManager()
@@ -372,6 +373,72 @@ static const char* SECTION_PAPERS = "[PAPERS]";
 static const char* SECTION_ATTACHMENTS = "[ATTACHMENTS]";
 static const char* SECTION_CATALOGS = "[CATALOGS]";
 
+namespace {
+namespace fs = std::filesystem;
+
+const char* DIR_AUTHORS = "authors";
+const char* DIR_SOURCES = "sources";
+const char* DIR_PAPERS = "papers";
+const char* DIR_ATTACHMENTS = "attachments";
+const char* DIR_CATALOGS = "catalogs";
+
+fs::path authorsFilePath(const fs::path& root) { return root / DIR_AUTHORS / "authors.txt"; }
+fs::path sourcesFilePath(const fs::path& root) { return root / DIR_SOURCES / "sources.txt"; }
+fs::path papersFilePath(const fs::path& root) { return root / DIR_PAPERS / "papers.txt"; }
+fs::path attachmentsFilePath(const fs::path& root) { return root / DIR_ATTACHMENTS / "attachments.txt"; }
+fs::path catalogsFilePath(const fs::path& root) { return root / DIR_CATALOGS / "catalogs.txt"; }
+
+bool ensureDataDirectories(const fs::path& root)
+{
+    std::error_code ec;
+    fs::create_directories(root / DIR_AUTHORS, ec);
+    if (ec) return false;
+    fs::create_directories(root / DIR_SOURCES, ec);
+    if (ec) return false;
+    fs::create_directories(root / DIR_PAPERS, ec);
+    if (ec) return false;
+    fs::create_directories(root / DIR_ATTACHMENTS, ec);
+    if (ec) return false;
+    fs::create_directories(root / DIR_CATALOGS, ec);
+    return !ec;
+}
+
+bool hasAnyLibraryDataFile(const fs::path& root)
+{
+    return fs::exists(authorsFilePath(root))
+        || fs::exists(sourcesFilePath(root))
+        || fs::exists(papersFilePath(root))
+        || fs::exists(attachmentsFilePath(root))
+        || fs::exists(catalogsFilePath(root));
+}
+
+template <typename Handler>
+bool loadLines(const fs::path& filePath, Handler handler)
+{
+    if (!fs::exists(filePath)) {
+        return true;
+    }
+
+    std::ifstream ifs(filePath);
+    if (!ifs.is_open()) {
+        return false;
+    }
+
+    std::string line;
+    bool firstLine = true;
+    while (std::getline(ifs, line)) {
+        if (firstLine && line.rfind("\xEF\xBB\xBF", 0) == 0) {
+            line.erase(0, 3);
+        }
+        firstLine = false;
+        if (!line.empty()) {
+            handler(line);
+        }
+    }
+    return true;
+}
+}
+
 bool LibraryManager::saveToFile(const std::string& filePath) const {
     std::ofstream ofs(filePath);
     if (!ofs.is_open()) return false;
@@ -398,6 +465,50 @@ bool LibraryManager::saveToFile(const std::string& filePath) const {
         ofs << pair.second.serialize() << "\n";
 
     ofs.close();
+    return true;
+}
+
+bool LibraryManager::saveToDirectory(const std::string& directoryPath) const {
+    if (directoryPath.empty()) return false;
+
+    const fs::path root(directoryPath);
+    if (!ensureDataDirectories(root)) return false;
+
+    {
+        std::ofstream ofs(authorsFilePath(root));
+        if (!ofs.is_open()) return false;
+        for (const auto& pair : m_authors)
+            ofs << pair.second.serialize() << "\n";
+    }
+
+    {
+        std::ofstream ofs(sourcesFilePath(root));
+        if (!ofs.is_open()) return false;
+        for (const auto& pair : m_sources)
+            ofs << pair.second->getType() << FIELD_SEP << pair.second->serialize() << "\n";
+    }
+
+    {
+        std::ofstream ofs(papersFilePath(root));
+        if (!ofs.is_open()) return false;
+        for (const auto& pair : m_papers)
+            ofs << pair.second.serialize() << "\n";
+    }
+
+    {
+        std::ofstream ofs(attachmentsFilePath(root));
+        if (!ofs.is_open()) return false;
+        for (const auto& pair : m_attachments)
+            ofs << pair.second.serialize() << "\n";
+    }
+
+    {
+        std::ofstream ofs(catalogsFilePath(root));
+        if (!ofs.is_open()) return false;
+        for (const auto& pair : m_catalogs)
+            ofs << pair.second.serialize() << "\n";
+    }
+
     return true;
 }
 
@@ -475,6 +586,85 @@ bool LibraryManager::loadFromFile(const std::string& filePath) {
     }
 
     ifs.close();
+    return true;
+}
+
+bool LibraryManager::loadFromDirectory(const std::string& directoryPath) {
+    if (directoryPath.empty()) return false;
+
+    const fs::path root(directoryPath);
+    if (!hasAnyLibraryDataFile(root)) return false;
+
+    clearAll();
+
+    if (!loadLines(authorsFilePath(root), [this](const std::string& line) {
+            Author a;
+            a.deserialize(line);
+            m_authors[a.getId()] = a;
+            if (a.getId() >= m_nextAuthorId)
+                m_nextAuthorId = a.getId() + 1;
+        })) {
+        return false;
+    }
+
+    if (!loadLines(sourcesFilePath(root), [this](const std::string& line) {
+            auto parts = split(line, FIELD_SEP);
+            if (parts.size() < 2) return;
+            std::string type = parts[0];
+            std::string rest;
+            for (size_t i = 1; i < parts.size(); ++i) {
+                if (i > 1) rest += FIELD_SEP;
+                rest += parts[i];
+            }
+
+            if (type == "Journal") {
+                auto j = std::make_shared<Journal>();
+                j->deserialize(rest);
+                m_sources[j->getId()] = j;
+                if (j->getId() >= m_nextSourceId)
+                    m_nextSourceId = j->getId() + 1;
+            }
+            else if (type == "Conference") {
+                auto c = std::make_shared<Conference>();
+                c->deserialize(rest);
+                m_sources[c->getId()] = c;
+                if (c->getId() >= m_nextSourceId)
+                    m_nextSourceId = c->getId() + 1;
+            }
+        })) {
+        return false;
+    }
+
+    if (!loadLines(papersFilePath(root), [this](const std::string& line) {
+            Paper p;
+            p.deserialize(line);
+            m_papers[p.getId()] = p;
+            if (p.getId() >= m_nextPaperId)
+                m_nextPaperId = p.getId() + 1;
+        })) {
+        return false;
+    }
+
+    if (!loadLines(attachmentsFilePath(root), [this](const std::string& line) {
+            Attachment a;
+            a.deserialize(line);
+            m_attachments[a.getId()] = a;
+            if (a.getId() >= m_nextAttachmentId)
+                m_nextAttachmentId = a.getId() + 1;
+        })) {
+        return false;
+    }
+
+    if (!loadLines(catalogsFilePath(root), [this](const std::string& line) {
+            Catalog c;
+            c.deserialize(line);
+            m_catalogs[c.getId()] = c;
+            if (c.getId() >= m_nextCatalogId)
+                m_nextCatalogId = c.getId() + 1;
+        })) {
+        return false;
+    }
+
     return true;
 }
 
