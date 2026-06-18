@@ -21,6 +21,9 @@ class CatalogTreeWidget : public QTreeWidget
 public:
     explicit CatalogTreeWidget(QWidget *parent = nullptr) : QTreeWidget(parent) {}
 
+signals:
+    void dropped();
+
 protected:
     void dropEvent(QDropEvent *event) override;
     QMimeData *mimeData(const QList<QTreeWidgetItem*> &items) const override;

@@ -10,6 +10,8 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QFileInfo>
+#include <QDesktopServices>
+#include <QUrl>
 
 AttachmentPage::AttachmentPage(QWidget *parent)
     : QWidget(parent)
@@ -25,9 +27,11 @@ AttachmentPage::AttachmentPage(QWidget *parent)
     m_searchEdit->setClearButtonEnabled(true);
     m_btnSearch = new QPushButton(QStringLiteral("搜索"));
 
+    m_btnOpenFile = new QPushButton(QStringLiteral("打开附件"));
     toolbar->addWidget(m_btnAdd);
     toolbar->addWidget(m_btnEdit);
     toolbar->addWidget(m_btnDelete);
+    toolbar->addWidget(m_btnOpenFile);
     toolbar->addStretch();
     toolbar->addWidget(m_searchEdit);
     toolbar->addWidget(m_btnSearch);
@@ -56,6 +60,7 @@ AttachmentPage::AttachmentPage(QWidget *parent)
     connect(m_btnDelete, &QPushButton::clicked, this, &AttachmentPage::onDelete);
     connect(m_btnSearch, &QPushButton::clicked, this, &AttachmentPage::onSearch);
     connect(m_searchEdit, &QLineEdit::returnPressed, this, &AttachmentPage::onSearch);
+    connect(m_btnOpenFile, &QPushButton::clicked, this, &AttachmentPage::onOpenFile);
 
     refreshTable();
 }
@@ -141,6 +146,38 @@ void AttachmentPage::onDelete()
     if (result == QMessageBox::Yes) {
         LibraryManager::getInstance().removeAttachment(id);
         refreshTable();
+    }
+}
+
+void AttachmentPage::onOpenFile()
+{
+    int row = m_table->currentRow();
+    if (row < 0) {
+        QMessageBox::information(this, QStringLiteral("提示"),
+                                 QStringLiteral("请先选择一条记录。"));
+        return;
+    }
+    IdType id = m_table->item(row, 0)->data(Qt::UserRole).toInt();
+    Attachment *att = LibraryManager::getInstance().findAttachment(id);
+    if (!att) return;
+
+    QString filePath = QString::fromStdString(att->getFilePath());
+    if (filePath.isEmpty()) {
+        QMessageBox::information(this, QStringLiteral("提示"),
+                                 QStringLiteral("该附件没有上传文件。"));
+        return;
+    }
+
+    QFileInfo info(filePath);
+    if (!info.exists()) {
+        QMessageBox::warning(this, QStringLiteral("文件不存在"),
+                             QStringLiteral("找不到文件：\n%1").arg(filePath));
+        return;
+    }
+
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(info.absoluteFilePath()))) {
+        QMessageBox::warning(this, QStringLiteral("打开失败"),
+                             QStringLiteral("系统无法打开该文件。"));
     }
 }
 

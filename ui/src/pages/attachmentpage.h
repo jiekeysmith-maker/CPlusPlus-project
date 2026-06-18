@@ -19,6 +19,7 @@ private slots:
     void onEdit();
     void onDelete();
     void onSearch();
+    void onOpenFile();
 
 private:
     QTableWidget *m_table;
@@ -27,6 +28,7 @@ private:
     QPushButton  *m_btnEdit;
     QPushButton  *m_btnDelete;
     QPushButton  *m_btnSearch;
+    QPushButton  *m_btnOpenFile;
 };
 
 #endif // ATTACHMENTPAGE_H

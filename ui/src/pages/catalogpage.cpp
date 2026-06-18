@@ -28,13 +28,14 @@
 void CatalogTreeWidget::dropEvent(QDropEvent *event)
 {
     QTreeWidgetItem *targetItem = itemAt(event->position().toPoint());
-    QTreeWidgetItem *sourceItem = currentItem();
+    QList<QTreeWidgetItem*> sel = selectedItems();
 
-    if (!targetItem || !sourceItem || targetItem == sourceItem) {
+    if (!targetItem || sel.isEmpty() || targetItem == sel.first()) {
         event->ignore();
         return;
     }
 
+    QTreeWidgetItem *sourceItem = sel.first();
     int sourceType = sourceItem->data(0, ROLE_TYPE).toInt();
     int targetType = targetItem->data(0, ROLE_TYPE).toInt();
 
@@ -52,21 +53,8 @@ void CatalogTreeWidget::dropEvent(QDropEvent *event)
         mgr.removePaperFromCatalog(paperId, sourceCatId);
         mgr.addPaperToCatalog(paperId, targetCatId);
 
-        sourceItem->setData(0, ROLE_CATALOG_ID, targetCatId);
-
-        if (sourceItem->parent())
-            sourceItem->parent()->removeChild(sourceItem);
-        targetItem->addChild(sourceItem);
-
-        // Update paper counts
-        Catalog *srcCat = mgr.findCatalog(sourceCatId);
-        if (srcCat && sourceItem->parent())
-            sourceItem->parent()->setText(2, QString::number(srcCat->getPaperIds().size()));
-        Catalog *tgtCat = mgr.findCatalog(targetCatId);
-        if (tgtCat)
-            targetItem->setText(2, QString::number(tgtCat->getPaperIds().size()));
-
         event->accept();
+        emit dropped();
     } else {
         event->ignore();
     }
@@ -218,6 +206,7 @@ CatalogPage::CatalogPage(QWidget *parent)
     connect(m_btnAddPaper,    &QPushButton::clicked, this, &CatalogPage::onAddPaper);
     connect(m_btnRemovePaper, &QPushButton::clicked, this, &CatalogPage::onRemovePaper);
     connect(m_tree, &QTreeWidget::itemDoubleClicked, this, &CatalogPage::onItemDoubleClicked);
+    connect(m_tree, &CatalogTreeWidget::dropped, this, [this]() { refreshTree(); });
 
     refreshTree();
 }
