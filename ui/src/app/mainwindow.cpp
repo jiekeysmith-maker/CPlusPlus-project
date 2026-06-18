@@ -662,6 +662,10 @@ void MainWindow::onViewPaperDetail()
         clearDetailPanel();
         return;
     }
+    if (m_detailPanel && m_detailPanel->isVisible() && m_detailPaperId == paperId) {
+        m_detailPanel->hide();
+        return;
+    }
     updateDetailPanel(paperId);
 }
 
