@@ -643,18 +643,22 @@ void MainWindow::onCatalogContextMenu(const QPoint &pos)
     QMenu menu(m_sidebar);
 
     if (item && isUserCatalogNode(item)) {
-        // Right-click on user catalog
+        // User catalog node: add child / delete
         m_sidebar->setCurrentItem(item);
         QAction *actAddChild = menu.addAction(QStringLiteral("添加子目录"));
         QAction *actDelete = menu.addAction(QStringLiteral("删除目录"));
 
         connect(actAddChild, &QAction::triggered, this, &MainWindow::onAddCatalog);
         connect(actDelete, &QAction::triggered, this, &MainWindow::onDeleteCatalog);
-    } else if (item && isSystemNode(item)) {
-        // Right-click on system nodes (我的文库/全部文献/最近添加)
-        m_sidebar->setCurrentItem(item);
-        QAction *actAdd = menu.addAction(QStringLiteral("添加目录"));
-        connect(actAdd, &QAction::triggered, this, &MainWindow::onAddCatalog);
+    } else if (item) {
+        const QString key = item->data(0, kRoleNodeKey).toString();
+        if (key == QStringLiteral("library")) {
+            // Only "我的文库" root — not "全部文献"/"最近添加"/"未分类"
+            QAction *actAdd = menu.addAction(QStringLiteral("添加目录"));
+            connect(actAdd, &QAction::triggered, this, &MainWindow::onAddCatalog);
+        } else {
+            return;
+        }
     } else {
         return;
     }
