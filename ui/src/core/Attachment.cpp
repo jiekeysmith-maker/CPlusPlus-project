@@ -11,7 +11,7 @@ Attachment::Attachment(IdType id, const std::string& name, IdType paperId,
 
 std::string Attachment::serialize() const {
     std::stringstream ss;
-    ss << m_id << FIELD_SEP << m_name << FIELD_SEP << m_paperId << FIELD_SEP << m_content;
+    ss << m_id << FIELD_SEP << m_name << FIELD_SEP << m_paperId << FIELD_SEP << m_content << FIELD_SEP << m_filePath;
     return ss.str();
 }
 
@@ -23,4 +23,5 @@ void Attachment::deserialize(const std::string& json) {
         m_paperId = std::stoi(parts[2]);
         m_content = parts[3];
     }
+    m_filePath = (parts.size() >= 5) ? parts[4] : "";
 }

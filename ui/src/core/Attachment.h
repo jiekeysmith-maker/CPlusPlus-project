@@ -12,6 +12,7 @@ private:
     std::string m_name;
     IdType m_paperId;
     std::string m_content;
+    std::string m_filePath;
 
 public:
     Attachment() : m_id(INVALID_ID), m_paperId(INVALID_ID) {}
@@ -25,6 +26,8 @@ public:
     void setPaperId(IdType pid) { m_paperId = pid; }
     const std::string& getContent() const { return m_content; }
     void setContent(const std::string& content) { m_content = content; }
+    const std::string& getFilePath() const { return m_filePath; }
+    void setFilePath(const std::string& path) { m_filePath = path; }
 
     std::string serialize() const override;
     void deserialize(const std::string& json) override;

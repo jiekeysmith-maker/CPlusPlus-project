@@ -13,6 +13,69 @@
 #include <QDesktopServices>
 #include <QFileInfo>
 #include <QUrl>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
+
+constexpr const char* MIME_CATALOG_DRAG_ID = "application/x-literature-catalog-id";
+
+// ============================================================
+// PaperDropTableWidget — accepts catalog drops to add paper
+// ============================================================
+
+PaperDropTableWidget::PaperDropTableWidget(QWidget *parent)
+    : QTableWidget(parent)
+{
+    setAcceptDrops(true);
+    viewport()->setAcceptDrops(true);
+    setDragDropOverwriteMode(false);
+    setDropIndicatorShown(true);
+}
+
+void PaperDropTableWidget::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasFormat(MIME_CATALOG_DRAG_ID)) {
+        event->acceptProposedAction();
+    } else {
+        QTableWidget::dragEnterEvent(event);
+    }
+}
+
+void PaperDropTableWidget::dragMoveEvent(QDragMoveEvent *event)
+{
+    if (event->mimeData()->hasFormat(MIME_CATALOG_DRAG_ID)) {
+        event->acceptProposedAction();
+    } else {
+        QTableWidget::dragMoveEvent(event);
+    }
+}
+
+void PaperDropTableWidget::dropEvent(QDropEvent *event)
+{
+    if (event->mimeData()->hasFormat(MIME_CATALOG_DRAG_ID)) {
+        QByteArray ba = event->mimeData()->data(MIME_CATALOG_DRAG_ID);
+        IdType catalogId = ba.toInt();
+
+        QTableWidgetItem *item = itemAt(event->position().toPoint());
+        if (item) {
+            int row = item->row();
+            QTableWidgetItem *idItem = this->item(row, 0);
+            if (idItem) {
+                IdType paperId = idItem->data(Qt::UserRole).toInt();
+                LibraryManager::getInstance().addPaperToCatalog(paperId, catalogId);
+                event->acceptProposedAction();
+                return;
+            }
+        }
+        event->ignore();
+    } else {
+        QTableWidget::dropEvent(event);
+    }
+}
+
+// ============================================================
+// PaperPage
+// ============================================================
 
 PaperPage::PaperPage(QWidget *parent)
     : QWidget(parent)
@@ -46,11 +109,11 @@ PaperPage::PaperPage(QWidget *parent)
     toolbar->addWidget(m_btnSearch);
     toolbar->addWidget(m_btnShowAll);
 
-    m_table = new QTableWidget;
+    m_table = new PaperDropTableWidget;
     m_table->setColumnCount(10);
     QStringList headers;
     headers << QStringLiteral("ID")
-            << QStringLiteral("编号")
+            << QStringLiteral("DOI编号")
             << QStringLiteral("标题")
             << QStringLiteral("关键词")
             << QStringLiteral("发表时间")

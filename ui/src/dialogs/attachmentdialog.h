@@ -7,6 +7,7 @@
 class QLineEdit;
 class QTextEdit;
 class QComboBox;
+class QPushButton;
 
 class AttachmentDialog : public QDialog
 {
@@ -23,8 +24,15 @@ protected:
 private:
     void setupUi();
 
+private slots:
+    void onSelectFile();
+
+private:
+
     QLineEdit *m_nameEdit;
     QComboBox *m_paperCombo;
+    QLineEdit *m_filePathEdit;
+    QPushButton *m_btnSelectFile;
     QTextEdit *m_contentEdit;
 };
 

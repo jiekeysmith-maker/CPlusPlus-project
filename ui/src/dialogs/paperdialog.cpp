@@ -183,7 +183,7 @@ void PaperDialog::setupUi()
     auto *tabBasic = new QWidget;
     auto *formBasic = new QFormLayout(tabBasic);
     m_codeEdit     = new QLineEdit;
-    m_codeEdit->setPlaceholderText(QStringLiteral("如 DOI 或自定义编号"));
+    m_codeEdit->setPlaceholderText(QStringLiteral("请输入 DOI 编号"));
     m_titleEdit     = new QLineEdit;
     m_keywordsEdit  = new QLineEdit;
     m_keywordsEdit->setPlaceholderText(QStringLiteral("多个关键词用分号(;)分隔"));
@@ -199,7 +199,7 @@ void PaperDialog::setupUi()
     m_btnSelectFile = new QPushButton(QStringLiteral("选择全文文件..."));
     m_remarkEdit    = new QLineEdit;
 
-    formBasic->addRow(QStringLiteral("编号:"), m_codeEdit);
+    formBasic->addRow(QStringLiteral("DOI编号:"), m_codeEdit);
     formBasic->addRow(QStringLiteral("标题:"), m_titleEdit);
     formBasic->addRow(QStringLiteral("关键词:"), m_keywordsEdit);
     formBasic->addRow(QStringLiteral("摘要:"), m_abstractEdit);

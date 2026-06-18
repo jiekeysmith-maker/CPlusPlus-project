@@ -2,12 +2,24 @@
 #define PAPERPAGE_H
 
 #include <QWidget>
+#include <QTableWidget>
 #include <vector>
 
-class QTableWidget;
 class QLineEdit;
 class QComboBox;
 class QPushButton;
+
+class PaperDropTableWidget : public QTableWidget
+{
+    Q_OBJECT
+public:
+    explicit PaperDropTableWidget(QWidget *parent = nullptr);
+
+protected:
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
+};
 
 class PaperPage : public QWidget
 {
@@ -27,7 +39,7 @@ private slots:
 private:
     void populateTable(const std::vector<class Paper> &papers);
 
-    QTableWidget *m_table;
+    PaperDropTableWidget *m_table;
     QLineEdit    *m_searchEdit;
     QComboBox    *m_searchCombo;
     QPushButton  *m_btnAdd;

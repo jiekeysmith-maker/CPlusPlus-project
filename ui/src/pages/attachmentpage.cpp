@@ -9,6 +9,7 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QMessageBox>
+#include <QFileInfo>
 
 AttachmentPage::AttachmentPage(QWidget *parent)
     : QWidget(parent)
@@ -32,12 +33,13 @@ AttachmentPage::AttachmentPage(QWidget *parent)
     toolbar->addWidget(m_btnSearch);
 
     m_table = new QTableWidget;
-    m_table->setColumnCount(5);
+    m_table->setColumnCount(6);
     QStringList headers;
     headers << QStringLiteral("ID")
             << QStringLiteral("名称")
             << QStringLiteral("所属文献ID")
             << QStringLiteral("所属文献标题")
+            << QStringLiteral("附件文件")
             << QStringLiteral("内容预览");
     m_table->setHorizontalHeaderLabels(headers);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -78,10 +80,18 @@ void AttachmentPage::refreshTable()
         m_table->setItem(row, 3, new QTableWidgetItem(
             p ? QString::fromStdString(p->getTitle()) : QStringLiteral("未知")));
 
+        QString filePath = QString::fromStdString(att.getFilePath());
+        if (filePath.isEmpty()) {
+            m_table->setItem(row, 4, new QTableWidgetItem(QStringLiteral("无文件")));
+        } else {
+            QFileInfo fi(filePath);
+            m_table->setItem(row, 4, new QTableWidgetItem(fi.fileName()));
+        }
+
         QString preview = QString::fromStdString(att.getContent());
         if (preview.length() > 50)
             preview = preview.left(50) + QStringLiteral("...");
-        m_table->setItem(row, 4, new QTableWidgetItem(preview));
+        m_table->setItem(row, 5, new QTableWidgetItem(preview));
         ++row;
     }
 }
