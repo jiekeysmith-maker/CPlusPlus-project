@@ -17,6 +17,7 @@
 #include <QDir>
 #include <QDateTime>
 #include <QStandardPaths>
+#include <QCoreApplication>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
@@ -764,6 +765,24 @@ QString PaperDialog::normalizePdfDate(const QString &value)
     return text;
 }
 
+static QString findPdfTool(const QString &name)
+{
+    // 1. System PATH
+    const QString sysPath = QStandardPaths::findExecutable(name);
+    if (!sysPath.isEmpty()) return sysPath;
+
+    // 2. Next to the executable
+    const QString exeDir = QCoreApplication::applicationDirPath();
+    const QString exePath = QDir(exeDir).filePath(name + QStringLiteral(".exe"));
+    if (QFile::exists(exePath)) return QDir::toNativeSeparators(exePath);
+
+    // 3. tools/ subdirectory next to exe
+    const QString toolsPath = QDir(exeDir).filePath(QStringLiteral("tools/") + name + QStringLiteral(".exe"));
+    if (QFile::exists(toolsPath)) return QDir::toNativeSeparators(toolsPath);
+
+    return QString();
+}
+
 QString PaperDialog::extractPdfTextWithExternalTool(const QString &filePath)
 {
     struct ToolRun {
@@ -771,8 +790,8 @@ QString PaperDialog::extractPdfTextWithExternalTool(const QString &filePath)
         QStringList arguments;
     };
 
-    const QString pdftotext = QStandardPaths::findExecutable(QStringLiteral("pdftotext"));
-    const QString mutool = QStandardPaths::findExecutable(QStringLiteral("mutool"));
+    const QString pdftotext = findPdfTool(QStringLiteral("pdftotext"));
+    const QString mutool = findPdfTool(QStringLiteral("mutool"));
     QVector<ToolRun> tools;
     if (!pdftotext.isEmpty()) {
         tools.push_back({
