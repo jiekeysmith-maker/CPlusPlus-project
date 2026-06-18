@@ -19,6 +19,7 @@
 #include <QCoreApplication>
 #include <QStandardPaths>
 #include <QRegularExpression>
+#include <QSet>
 
 // ========== 作者选择器子对话框 ==========
 class AuthorPickerDialog : public QDialog
@@ -197,6 +198,8 @@ void PaperDialog::setupUi()
     m_filePathEdit  = new QLineEdit;
     m_filePathEdit->setReadOnly(true);
     m_btnSelectFile = new QPushButton(QStringLiteral("选择全文文件..."));
+    m_uploadTimeEdit = new QLineEdit;
+    m_uploadTimeEdit->setPlaceholderText(QStringLiteral("自动生成，格式 yyyy-MM-dd HH:mm:ss"));
     m_remarkEdit    = new QLineEdit;
 
     formBasic->addRow(QStringLiteral("编号:"), m_codeEdit);
@@ -211,6 +214,7 @@ void PaperDialog::setupUi()
     fileLayout->addWidget(m_filePathEdit, 1);
     fileLayout->addWidget(m_btnSelectFile);
     formBasic->addRow(QStringLiteral("全文文件:"), fileLayout);
+    formBasic->addRow(QStringLiteral("上传时间:"), m_uploadTimeEdit);
     formBasic->addRow(QStringLiteral("备注:"), m_remarkEdit);
     tabs->addTab(tabBasic, QStringLiteral("基本信息"));
 
@@ -365,6 +369,9 @@ void PaperDialog::accept()
         m_titleEdit->setFocus();
         return;
     }
+    if (m_uploadTimeEdit->text().trimmed().isEmpty()) {
+        m_uploadTimeEdit->setText(QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")));
+    }
     QDialog::accept();
 }
 
@@ -380,6 +387,7 @@ Paper PaperDialog::getPaper() const
     p.setRemark(m_remarkEdit->text().toStdString());
     p.setAbstract(m_abstractEdit->toPlainText().toStdString());
     p.setFilePath(QDir::fromNativeSeparators(m_filePathEdit->text()).toStdString());
+    p.setUploadTime(m_uploadTimeEdit->text().trimmed().toStdString());
 
     std::vector<std::string> kws;
     QString kwText = m_keywordsEdit->text().trimmed();
@@ -408,6 +416,7 @@ void PaperDialog::setPaper(const Paper &p)
     m_issueNumEdit->setText(QString::fromStdString(p.getIssueNumber()));
     m_pageEdit->setText(QString::fromStdString(p.getPageRange()));
     m_filePathEdit->setText(QDir::toNativeSeparators(QString::fromStdString(p.getFilePath())));
+    m_uploadTimeEdit->setText(QString::fromStdString(p.getUploadTime()));
     m_remarkEdit->setText(QString::fromStdString(p.getRemark()));
     m_abstractEdit->setText(QString::fromStdString(p.getAbstract()));
 
@@ -475,6 +484,63 @@ QString PaperDialog::decodePdfLiteralString(const QString &value)
     return out;
 }
 
+QString PaperDialog::decodePdfHexString(const QString &value)
+{
+    QString hex = value.trimmed();
+    if (hex.startsWith('<')) hex.remove(0, 1);
+    if (hex.endsWith('>')) hex.chop(1);
+    hex.remove(QRegularExpression(QStringLiteral(R"(\s+)")));
+    if (hex.size() % 2 == 1) {
+        hex.append(QLatin1Char('0'));
+    }
+
+    QByteArray bytes;
+    bytes.reserve(hex.size() / 2);
+    for (int i = 0; i + 1 < hex.size(); i += 2) {
+        bool ok = false;
+        const char ch = static_cast<char>(hex.mid(i, 2).toUInt(&ok, 16));
+        if (ok) {
+            bytes.append(ch);
+        }
+    }
+
+    if (bytes.size() >= 2
+        && static_cast<unsigned char>(bytes[0]) == 0xFE
+        && static_cast<unsigned char>(bytes[1]) == 0xFF) {
+        QString out;
+        for (int i = 2; i + 1 < bytes.size(); i += 2) {
+            const ushort code = (static_cast<unsigned char>(bytes[i]) << 8)
+                | static_cast<unsigned char>(bytes[i + 1]);
+            if (code != 0) {
+                out.append(QChar(code));
+            }
+        }
+        return out.simplified();
+    }
+
+    QString utf8 = QString::fromUtf8(bytes);
+    if (!utf8.trimmed().isEmpty()) {
+        return utf8.simplified();
+    }
+    return QString::fromLatin1(bytes).simplified();
+}
+
+QString PaperDialog::decodePdfValue(const QString &value)
+{
+    QString text = value.trimmed();
+    if (text.startsWith('(') && text.endsWith(')')) {
+        text = text.mid(1, text.size() - 2);
+        return decodePdfLiteralString(text).simplified();
+    }
+    if (text.startsWith('<') && text.endsWith('>')) {
+        return decodePdfHexString(text).simplified();
+    }
+    if (text.contains(QRegularExpression(QStringLiteral(R"(^[0-9A-Fa-f\s]{4,}$)")))) {
+        return decodePdfHexString(text).simplified();
+    }
+    return text.simplified();
+}
+
 QString PaperDialog::normalizePdfDate(const QString &value)
 {
     QString text = value.trimmed();
@@ -488,6 +554,168 @@ QString PaperDialog::normalizePdfDate(const QString &value)
             .arg(text.mid(6, 2));
     }
     return text;
+}
+
+bool PaperDialog::isWeakPdfTitle(const QString &value)
+{
+    const QString title = value.simplified();
+    const QString lower = title.toLower();
+    if (title.size() < 5 || title.size() > 220) {
+        return true;
+    }
+    static const QStringList weakWords = {
+        QStringLiteral("introduction"),
+        QStringLiteral("abstract"),
+        QStringLiteral("references"),
+        QStringLiteral("bibliography"),
+        QStringLiteral("contents"),
+        QStringLiteral("untitled"),
+        QStringLiteral("microsoft word"),
+        QStringLiteral("doi:"),
+        QStringLiteral("arxiv"),
+        QStringLiteral("keywords")
+    };
+    for (const QString &word : weakWords) {
+        if (lower == word || lower.startsWith(word + QStringLiteral(" "))
+            || lower.contains(QStringLiteral(" ") + word + QStringLiteral(" "))) {
+            return true;
+        }
+    }
+    int letters = 0;
+    for (const QChar &ch : title) {
+        if (ch.isLetter()) ++letters;
+    }
+    return letters < 4;
+}
+
+QString PaperDialog::extractTitleFromPdfText(const QStringList &chunks)
+{
+    for (QString chunk : chunks) {
+        chunk = chunk.simplified();
+        if (chunk.isEmpty() || isWeakPdfTitle(chunk)) {
+            continue;
+        }
+        const QString lower = chunk.toLower();
+        if (lower.contains(QStringLiteral("@"))
+            || lower.contains(QStringLiteral("university"))
+            || lower.contains(QStringLiteral("institute"))
+            || lower.contains(QStringLiteral("college"))
+            || lower.contains(QStringLiteral("department"))) {
+            continue;
+        }
+        return chunk;
+    }
+    return QString();
+}
+
+QString PaperDialog::extractAuthorsFromPdfText(const QStringList &chunks, const QString &title)
+{
+    bool passedTitle = title.isEmpty();
+    for (QString chunk : chunks) {
+        chunk = chunk.simplified();
+        if (chunk.isEmpty()) {
+            continue;
+        }
+        if (!passedTitle) {
+            if (chunk.compare(title, Qt::CaseInsensitive) == 0) {
+                passedTitle = true;
+            }
+            continue;
+        }
+
+        const QString lower = chunk.toLower();
+        if (lower.contains(QStringLiteral("abstract"))
+            || lower.contains(QStringLiteral("keywords"))
+            || lower.contains(QStringLiteral("introduction"))) {
+            break;
+        }
+        if (lower.contains(QStringLiteral("@"))
+            || lower.contains(QStringLiteral("university"))
+            || lower.contains(QStringLiteral("institute"))
+            || lower.contains(QStringLiteral("department"))
+            || lower.contains(QStringLiteral("college"))
+            || lower.contains(QStringLiteral("laboratory"))) {
+            continue;
+        }
+
+        const QStringList names = splitAuthorNames(chunk);
+        if (!names.isEmpty()) {
+            return names.join(QStringLiteral("; "));
+        }
+    }
+    return QString();
+}
+
+QStringList PaperDialog::splitAuthorNames(const QString &value)
+{
+    QString text = value.simplified();
+    text.replace(QRegularExpression(QStringLiteral(R"(\b(and|AND|And)\b)")), QStringLiteral(";"));
+    text.replace(QRegularExpression(QStringLiteral(R"([,;、，]+)")), QStringLiteral(";"));
+    text.replace(QRegularExpression(QStringLiteral(R"(\s+\d+(\s*[,;])?)")), QStringLiteral(";"));
+    text.replace(QRegularExpression(QStringLiteral("[\\*†‡]+")), QString());
+
+    QStringList result;
+    QSet<QString> seen;
+    const QStringList parts = text.split(';', Qt::SkipEmptyParts);
+    for (QString name : parts) {
+        name = name.simplified();
+        name.remove(QRegularExpression(QStringLiteral(R"(^\d+\s*)")));
+        name.remove(QRegularExpression(QStringLiteral(R"(\s*\d+$)")));
+        name = name.trimmed();
+        if (name.size() < 2 || name.size() > 80) {
+            continue;
+        }
+        int letters = 0;
+        for (const QChar &ch : name) {
+            if (ch.isLetter()) ++letters;
+        }
+        if (letters < 2) {
+            continue;
+        }
+        const QString lower = name.toLower();
+        if (lower.contains(QStringLiteral("abstract"))
+            || lower.contains(QStringLiteral("keywords"))
+            || lower.contains(QStringLiteral("university"))
+            || lower.contains(QStringLiteral("institute"))
+            || lower.contains(QStringLiteral("department"))) {
+            continue;
+        }
+        if (!seen.contains(lower)) {
+            seen.insert(lower);
+            result << name;
+        }
+    }
+    return result;
+}
+
+IdType PaperDialog::findOrCreateAuthor(const QString &name) const
+{
+    const QString trimmed = name.simplified();
+    if (trimmed.isEmpty()) {
+        return INVALID_ID;
+    }
+
+    auto &mgr = LibraryManager::getInstance();
+    for (const auto &pair : mgr.getAllAuthors()) {
+        if (QString::fromStdString(pair.second.getName()).compare(trimmed, Qt::CaseInsensitive) == 0) {
+            return pair.first;
+        }
+    }
+
+    Author author;
+    author.setName(trimmed.toStdString());
+    return mgr.addAuthor(author);
+}
+
+void PaperDialog::refreshSelectedAuthorList()
+{
+    m_authorList->clear();
+    auto &mgr = LibraryManager::getInstance();
+    for (IdType id : m_selectedAuthorIds) {
+        m_authorList->addItem(QString("[%1] %2")
+            .arg(id)
+            .arg(QString::fromStdString(mgr.getAuthorName(id))));
+    }
 }
 
 QString PaperDialog::firstNonEmpty(const QStringList &values)
@@ -513,18 +741,65 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
 
     auto takeMatch = [&](const QRegularExpression &re) -> QString {
         QRegularExpressionMatch match = re.match(text);
-        return match.hasMatch() ? match.captured(1).trimmed() : QString();
+        return match.hasMatch() ? decodePdfValue(match.captured(1)).trimmed() : QString();
     };
+
+    QStringList textChunks;
+    QRegularExpression literalTextRe(QStringLiteral(R"(\(((?:\\.|[^\\()]){3,240})\)\s*(?:Tj|'|"|TJ))"),
+        QRegularExpression::DotMatchesEverythingOption);
+    auto literalIt = literalTextRe.globalMatch(text);
+    while (literalIt.hasNext() && textChunks.size() < 80) {
+        const QRegularExpressionMatch match = literalIt.next();
+        const QString decoded = decodePdfLiteralString(match.captured(1)).simplified();
+        if (!decoded.isEmpty()) {
+            textChunks << decoded;
+        }
+    }
+
+    QRegularExpression hexTextRe(QStringLiteral(R"(<([0-9A-Fa-f\s]{6,480})>\s*(?:Tj|'|"|TJ))"),
+        QRegularExpression::DotMatchesEverythingOption);
+    auto hexIt = hexTextRe.globalMatch(text);
+    while (hexIt.hasNext() && textChunks.size() < 120) {
+        const QRegularExpressionMatch match = hexIt.next();
+        const QString decoded = decodePdfHexString(match.captured(1)).simplified();
+        if (!decoded.isEmpty()) {
+            textChunks << decoded;
+        }
+    }
+    if (textChunks.isEmpty()) {
+        QRegularExpression genericTextRe(QStringLiteral(R"(\(((?:\\.|[^\\()]){4,220})\))"),
+            QRegularExpression::DotMatchesEverythingOption);
+        auto genericIt = genericTextRe.globalMatch(text);
+        while (genericIt.hasNext() && textChunks.size() < 120) {
+            const QRegularExpressionMatch match = genericIt.next();
+            const QString decoded = decodePdfLiteralString(match.captured(1)).simplified();
+            if (!decoded.isEmpty()) {
+                textChunks << decoded;
+            }
+        }
+    }
 
     meta.title = firstNonEmpty({
         takeMatch(QRegularExpression(QStringLiteral(R"(/Title\s*\((.*?)\))"), QRegularExpression::DotMatchesEverythingOption)),
         takeMatch(QRegularExpression(QStringLiteral(R"(/Title\s*<([^>]+)>)"), QRegularExpression::DotMatchesEverythingOption)),
     });
+    if (isWeakPdfTitle(meta.title)) {
+        const QString titleFromText = extractTitleFromPdfText(textChunks);
+        if (!titleFromText.isEmpty()) {
+            meta.title = titleFromText;
+        }
+    }
 
     meta.author = firstNonEmpty({
         takeMatch(QRegularExpression(QStringLiteral(R"(/Author\s*\((.*?)\))"), QRegularExpression::DotMatchesEverythingOption)),
         takeMatch(QRegularExpression(QStringLiteral(R"(/Author\s*<([^>]+)>)"), QRegularExpression::DotMatchesEverythingOption)),
     });
+    if (splitAuthorNames(meta.author).isEmpty()) {
+        const QString authorsFromText = extractAuthorsFromPdfText(textChunks, meta.title);
+        if (!authorsFromText.isEmpty()) {
+            meta.author = authorsFromText;
+        }
+    }
 
     meta.subject = firstNonEmpty({
         takeMatch(QRegularExpression(QStringLiteral(R"(/Subject\s*\((.*?)\))"), QRegularExpression::DotMatchesEverythingOption)),
@@ -547,7 +822,7 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
         meta.pageRange = QStringLiteral("1-%1").arg(pagesMatch.captured(1));
     }
 
-    const QString cleaned = text.simplified();
+    const QString cleaned = !textChunks.isEmpty() ? textChunks.join(QStringLiteral(" ")).simplified() : text.simplified();
     const int titleIndex = cleaned.indexOf(meta.title, 0, Qt::CaseInsensitive);
     if (!meta.title.isEmpty() && titleIndex >= 0) {
         const int end = qMin(cleaned.size(), titleIndex + 1200);
@@ -568,23 +843,21 @@ void PaperDialog::applyPdfMetadata(const PdfMetadata &metadata)
     }
 
     if (!metadata.author.isEmpty() && m_selectedAuthorIds.empty()) {
-        m_authorList->clear();
-        const QStringList authors = metadata.author.split(QRegularExpression(QStringLiteral(R"([;,/、]+)")), Qt::SkipEmptyParts);
-        auto &mgr = LibraryManager::getInstance();
+        m_selectedAuthorIds.clear();
+        const QStringList authors = splitAuthorNames(metadata.author);
+        QSet<IdType> seenIds;
         for (const QString &authorName : authors) {
-            QString trimmed = authorName.trimmed();
+            QString trimmed = authorName.simplified();
             if (trimmed.isEmpty()) {
                 continue;
             }
-            m_authorList->addItem(trimmed);
-            const auto &allAuthors = mgr.getAllAuthors();
-            for (const auto &pair : allAuthors) {
-                if (QString::fromStdString(pair.second.getName()).compare(trimmed, Qt::CaseInsensitive) == 0) {
-                    m_selectedAuthorIds.push_back(pair.first);
-                    break;
-                }
+            const IdType id = findOrCreateAuthor(trimmed);
+            if (id != INVALID_ID && !seenIds.contains(id)) {
+                seenIds.insert(id);
+                m_selectedAuthorIds.push_back(id);
             }
         }
+        refreshSelectedAuthorList();
     }
 
     if (!metadata.publicationDate.isEmpty() && m_dateEdit->text().trimmed().isEmpty()) {

@@ -2,17 +2,22 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QMap>
 #include <QString>
+#include <vector>
 
-class QListWidget;
-class QStackedWidget;
-class QLabel;
+#include "manage.h"
+
 class QCloseEvent;
-class AuthorPage;
-class SourcePage;
-class PaperPage;
-class AttachmentPage;
-class CatalogPage;
+class QEvent;
+class QLineEdit;
+class QPushButton;
+class QTreeWidget;
+class QTreeWidgetItem;
+class QTableWidget;
+class QAction;
+class Ui_MainWindow;
+class PaperDialog;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -30,32 +35,81 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
-    void onSidebarChanged(int row);
+    void onSidebarItemChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous);
+    void onSearchTextChanged(const QString &text);
+    void onSearchClicked();
+    void onShowAllClicked();
+    void onAddPaper();
+    void onEditPaper();
+    void onDeletePaper();
+    void onAddCatalog();
+    void onDeleteCatalog();
+    void onOpenPaperAttachment(int row, int column);
     void onSave();
     void onLoad();
 
 private:
+    enum class LibraryNodeType {
+        System,
+        Catalog
+    };
+
+    struct LibraryNodeInfo {
+        LibraryNodeType type = LibraryNodeType::System;
+        IdType catalogId = INVALID_ID;
+        QString key;
+        bool deletable = false;
+    };
+
     void setupUi();
     void setupMenuBar();
-    void createPages();
+    void setupToolbar();
+    void rebuildCatalogTree();
+    void refreshPaperTable();
+    void updatePaperTable(const std::vector<Paper> &papers);
+    std::vector<Paper> collectCurrentPapers() const;
+    std::vector<Paper> filterPapers(const std::vector<Paper> &papers, const QString &keyword) const;
+    QString paperAuthorsText(const Paper &paper) const;
+    QString paperKeywordsText(const Paper &paper) const;
+    QString paperCatalogText(const Paper &paper) const;
+    QString paperUploadTimeText(const Paper &paper) const;
+    void ensureUploadTime(Paper &paper) const;
+    void addPaperToCurrentCatalog(IdType paperId) const;
+    bool moveSelectedPaperToCatalog(IdType catalogId);
+    IdType selectedPaperId() const;
+    void adjustAuthorColumnWidth();
+    bool isUserCatalogNode(const QTreeWidgetItem *item) const;
+    bool isSystemNode(const QTreeWidgetItem *item) const;
+    IdType currentCatalogId() const;
+    QString currentNodeKey() const;
+    void selectSystemNode(const QString &key);
     void showStatus(const QString &msg);
-    void refreshAllPages();
-    QString defaultDataFilePath() const;
+    void restoreSelectionAfterReload(const QString &key);
+    void applyTreeStyle();
     bool saveDefaultData();
     bool loadDefaultData();
+    QString defaultDataFilePath() const;
+    QString defaultUploadTime() const;
+    QTreeWidgetItem *findNodeByKey(const QString &key) const;
 
-    Ui::MainWindow *ui;
-    QListWidget    *m_sidebar;
-    QStackedWidget *m_stack;
-    QString         m_defaultDataPath;
-
-    AuthorPage     *m_authorPage;
-    SourcePage     *m_sourcePage;
-    PaperPage      *m_paperPage;
-    AttachmentPage *m_attachmentPage;
-    CatalogPage    *m_catalogPage;
+    Ui::MainWindow *ui = nullptr;
+    QTreeWidget *m_sidebar = nullptr;
+    QTableWidget *m_table = nullptr;
+    QLineEdit *m_searchEdit = nullptr;
+    QString m_defaultDataPath;
+    QString m_currentNodeKey;
+    QAction *m_addPaperAction = nullptr;
+    QAction *m_editPaperAction = nullptr;
+    QAction *m_deletePaperAction = nullptr;
+    QAction *m_addCatalogAction = nullptr;
+    QAction *m_deleteCatalogAction = nullptr;
+    QAction *m_saveAction = nullptr;
+    QAction *m_loadAction = nullptr;
+    QPushButton *m_searchButton = nullptr;
+    QPushButton *m_showAllButton = nullptr;
 };
 
 #endif // MAINWINDOW_H

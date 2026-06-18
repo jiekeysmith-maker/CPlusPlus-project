@@ -49,8 +49,16 @@ private:
     PdfMetadata extractPdfMetadata(const QString &filePath) const;
     void applyPdfMetadata(const PdfMetadata &metadata);
     static QString decodePdfLiteralString(const QString &value);
+    static QString decodePdfHexString(const QString &value);
+    static QString decodePdfValue(const QString &value);
     static QString normalizePdfDate(const QString &value);
     static QString firstNonEmpty(const QStringList &values);
+    static bool isWeakPdfTitle(const QString &value);
+    static QString extractTitleFromPdfText(const QStringList &chunks);
+    static QString extractAuthorsFromPdfText(const QStringList &chunks, const QString &title);
+    static QStringList splitAuthorNames(const QString &value);
+    IdType findOrCreateAuthor(const QString &name) const;
+    void refreshSelectedAuthorList();
 
     // 基本信息
     QLineEdit *m_codeEdit;
@@ -63,6 +71,7 @@ private:
     QLineEdit *m_pageEdit;
     QLineEdit *m_filePathEdit;
     QPushButton *m_btnSelectFile;
+    QLineEdit *m_uploadTimeEdit;
     QLineEdit *m_remarkEdit;
 
     // 作者与出版物
