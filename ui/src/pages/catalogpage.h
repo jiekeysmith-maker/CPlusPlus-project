@@ -6,7 +6,6 @@
 #include "manage.h"
 
 class QTreeWidgetItem;
-class QPushButton;
 
 constexpr int ROLE_ID         = Qt::UserRole;
 constexpr int ROLE_TYPE       = Qt::UserRole + 1;
@@ -48,6 +47,7 @@ private slots:
     void onAddPaper();
     void onRemovePaper();
     void onItemDoubleClicked(QTreeWidgetItem *item, int column);
+    void onContextMenu(const QPoint &pos);
 
 private:
     void addChildItems(QTreeWidgetItem *parentItem, IdType parentId);
@@ -57,12 +57,6 @@ private:
     IdType selectedCatalogId() const;
 
     CatalogTreeWidget *m_tree;
-    QPushButton *m_btnAddRoot;
-    QPushButton *m_btnAddChild;
-    QPushButton *m_btnEdit;
-    QPushButton *m_btnDelete;
-    QPushButton *m_btnAddPaper;
-    QPushButton *m_btnRemovePaper;
 };
 
 #endif // CATALOGPAGE_H

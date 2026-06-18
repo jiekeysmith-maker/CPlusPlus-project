@@ -6,11 +6,10 @@
 #include <QTreeWidgetItem>
 #include <QPushButton>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QMessageBox>
-#include <QInputDialog>
 #include <QDesktopServices>
+#include <QMenu>
 #include <QUrl>
 #include <QFileInfo>
 #include <QMimeData>
@@ -165,22 +164,6 @@ CatalogPage::CatalogPage(QWidget *parent)
 {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
-    QHBoxLayout *toolbar = new QHBoxLayout;
-    m_btnAddRoot     = new QPushButton(QStringLiteral("新增根目录"));
-    m_btnAddChild    = new QPushButton(QStringLiteral("添加子目录"));
-    m_btnEdit        = new QPushButton(QStringLiteral("编辑"));
-    m_btnDelete      = new QPushButton(QStringLiteral("删除"));
-    m_btnAddPaper    = new QPushButton(QStringLiteral("添加文献到目录"));
-    m_btnRemovePaper = new QPushButton(QStringLiteral("从目录移除文献"));
-
-    toolbar->addWidget(m_btnAddRoot);
-    toolbar->addWidget(m_btnAddChild);
-    toolbar->addWidget(m_btnEdit);
-    toolbar->addWidget(m_btnDelete);
-    toolbar->addStretch();
-    toolbar->addWidget(m_btnAddPaper);
-    toolbar->addWidget(m_btnRemovePaper);
-
     m_tree = new CatalogTreeWidget;
     QStringList headers;
     headers << QStringLiteral("名称")
@@ -195,18 +178,13 @@ CatalogPage::CatalogPage(QWidget *parent)
     m_tree->setAcceptDrops(true);
     m_tree->setDragDropMode(QAbstractItemView::DragDrop);
     m_tree->setDefaultDropAction(Qt::MoveAction);
+    m_tree->setContextMenuPolicy(Qt::CustomContextMenu);
 
-    mainLayout->addLayout(toolbar);
     mainLayout->addWidget(m_tree);
 
-    connect(m_btnAddRoot,     &QPushButton::clicked, this, &CatalogPage::onAddRoot);
-    connect(m_btnAddChild,    &QPushButton::clicked, this, &CatalogPage::onAddChild);
-    connect(m_btnEdit,        &QPushButton::clicked, this, &CatalogPage::onEdit);
-    connect(m_btnDelete,      &QPushButton::clicked, this, &CatalogPage::onDelete);
-    connect(m_btnAddPaper,    &QPushButton::clicked, this, &CatalogPage::onAddPaper);
-    connect(m_btnRemovePaper, &QPushButton::clicked, this, &CatalogPage::onRemovePaper);
     connect(m_tree, &QTreeWidget::itemDoubleClicked, this, &CatalogPage::onItemDoubleClicked);
     connect(m_tree, &CatalogTreeWidget::dropped, this, [this]() { refreshTree(); });
+    connect(m_tree, &QWidget::customContextMenuRequested, this, &CatalogPage::onContextMenu);
 
     refreshTree();
 }
@@ -434,4 +412,51 @@ void CatalogPage::onItemDoubleClicked(QTreeWidgetItem *item, int /*column*/)
         QMessageBox::warning(this, QStringLiteral("打开失败"),
                              QStringLiteral("系统无法打开该文件。"));
     }
+}
+
+void CatalogPage::onContextMenu(const QPoint &pos)
+{
+    QTreeWidgetItem *item = m_tree->itemAt(pos);
+    QMenu menu(m_tree);
+
+    if (!item) {
+        // Right-click on empty area
+        QAction *actAddRoot = menu.addAction(QStringLiteral("新增根目录"));
+        connect(actAddRoot, &QAction::triggered, this, &CatalogPage::onAddRoot);
+    } else {
+        int type = item->data(0, ROLE_TYPE).toInt();
+        // Select the right-clicked item so existing slots work
+        m_tree->setCurrentItem(item);
+
+        if (type == TYPE_CATALOG) {
+            QAction *actAddChild = menu.addAction(QStringLiteral("添加子目录"));
+            QAction *actEdit = menu.addAction(QStringLiteral("编辑目录"));
+            QAction *actDelete = menu.addAction(QStringLiteral("删除目录"));
+            menu.addSeparator();
+            QAction *actAddPaper = menu.addAction(QStringLiteral("添加文献到目录"));
+            QAction *actRemovePaper = menu.addAction(QStringLiteral("从目录移除文献"));
+
+            connect(actAddChild,    &QAction::triggered, this, &CatalogPage::onAddChild);
+            connect(actEdit,        &QAction::triggered, this, &CatalogPage::onEdit);
+            connect(actDelete,      &QAction::triggered, this, &CatalogPage::onDelete);
+            connect(actAddPaper,    &QAction::triggered, this, &CatalogPage::onAddPaper);
+            connect(actRemovePaper, &QAction::triggered, this, &CatalogPage::onRemovePaper);
+        } else if (type == TYPE_PAPER) {
+            IdType catId = item->data(0, ROLE_CATALOG_ID).toInt();
+
+            QAction *actRemove = menu.addAction(QStringLiteral("从目录移除文献"));
+            QAction *actOpen = menu.addAction(QStringLiteral("打开全文"));
+
+            connect(actRemove, &QAction::triggered, this, [this, catId]() {
+                IdType paperId = m_tree->currentItem()->data(0, ROLE_ID).toInt();
+                LibraryManager::getInstance().removePaperFromCatalog(paperId, catId);
+                refreshTree();
+            });
+            connect(actOpen, &QAction::triggered, this, [this]() {
+                onItemDoubleClicked(m_tree->currentItem(), 0);
+            });
+        }
+    }
+
+    menu.exec(m_tree->viewport()->mapToGlobal(pos));
 }
