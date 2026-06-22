@@ -3,6 +3,7 @@
 #include "SerializationUtils.h"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -512,6 +513,26 @@ fs::path attachmentsFilePath(const fs::path& root) { return root / DIR_ATTACHMEN
 fs::path catalogsFilePath(const fs::path& root) { return root / DIR_CATALOGS / "catalogs.txt"; }
 fs::path authorCatalogsFilePath(const fs::path& root) { return root / DIR_AUTHOR_CATALOGS / "author_catalogs.txt"; }
 
+bool hasNonBlankText(const std::string& value)
+{
+    return std::any_of(value.begin(), value.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    });
+}
+
+bool isPersistablePaper(const Paper& paper)
+{
+    if (paper.getId() <= 0) {
+        return false;
+    }
+    return hasNonBlankText(paper.getTitle())
+        || hasNonBlankText(paper.getCode())
+        || hasNonBlankText(paper.getAbstract())
+        || hasNonBlankText(paper.getFilePath())
+        || hasNonBlankText(paper.getUploadTime())
+        || hasNonBlankText(paper.getRemark());
+}
+
 bool ensureDataDirectories(const fs::path& root)
 {
     std::error_code ec;
@@ -580,8 +601,10 @@ bool LibraryManager::saveToFile(const std::string& filePath) const {
     }
 
     ofs << SECTION_PAPERS << "\n";
-    for (const auto& pair : m_papers)
-        ofs << pair.second.serialize() << "\n";
+    for (const auto& pair : m_papers) {
+        if (isPersistablePaper(pair.second))
+            ofs << pair.second.serialize() << "\n";
+    }
 
     ofs << SECTION_ATTACHMENTS << "\n";
     for (const auto& pair : m_attachments)
@@ -622,8 +645,10 @@ bool LibraryManager::saveToDirectory(const std::string& directoryPath) const {
     {
         std::ofstream ofs(papersFilePath(root));
         if (!ofs.is_open()) return false;
-        for (const auto& pair : m_papers)
-            ofs << pair.second.serialize() << "\n";
+        for (const auto& pair : m_papers) {
+            if (isPersistablePaper(pair.second))
+                ofs << pair.second.serialize() << "\n";
+        }
     }
 
     {
@@ -704,6 +729,9 @@ bool LibraryManager::loadFromFile(const std::string& filePath) {
         else if (currentSection == SECTION_PAPERS) {
             Paper p;
             p.deserialize(line);
+            if (!isPersistablePaper(p)) {
+                continue;
+            }
             m_papers[p.getId()] = p;
             if (p.getId() >= m_nextPaperId)
                 m_nextPaperId = p.getId() + 1;
@@ -788,6 +816,9 @@ bool LibraryManager::importFromFile(const std::string& filePath) {
         else if (currentSection == SECTION_PAPERS) {
             Paper p;
             p.deserialize(line);
+            if (!isPersistablePaper(p)) {
+                continue;
+            }
             importedPapers[p.getId()] = p;
         }
         else if (currentSection == SECTION_ATTACHMENTS) {
@@ -999,6 +1030,9 @@ bool LibraryManager::loadFromDirectory(const std::string& directoryPath) {
     if (!loadLines(papersFilePath(root), [this](const std::string& line) {
             Paper p;
             p.deserialize(line);
+            if (!isPersistablePaper(p)) {
+                return;
+            }
             m_papers[p.getId()] = p;
             if (p.getId() >= m_nextPaperId)
                 m_nextPaperId = p.getId() + 1;

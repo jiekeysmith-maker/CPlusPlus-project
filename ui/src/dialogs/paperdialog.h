@@ -24,15 +24,36 @@ struct PdfMetadata
     QString publicationDate;
     QString issue;
     QString issueNumber;
+    QString volume;
+    QString arxivId;
     QString pageRange;
     QString abstract;
+    QString publisher;
+    QString url;
     QString rawText;
+    QString metadataSource;
+    QString confidenceSummary;
+    QString doiSource;
+    QString titleSource;
+    QString authorSource;
+    QString keywordsSource;
+    QString subjectSource;
+    QString publicationDateSource;
+    QString issueSource;
+    QString issueNumberSource;
+    QString arxivSource;
+    QString abstractSource;
+    QString publicationSuggestion;
+    QString publicationSuggestionSource;
     bool isValid() const
     {
         return !doi.isEmpty() || !title.isEmpty() || !author.isEmpty()
             || !keywords.isEmpty() || !subject.isEmpty()
             || !publicationDate.isEmpty() || !issue.isEmpty()
-            || !issueNumber.isEmpty() || !pageRange.isEmpty()
+            || !issueNumber.isEmpty() || !volume.isEmpty()
+            || !arxivId.isEmpty() || !pageRange.isEmpty()
+            || !publisher.isEmpty() || !url.isEmpty()
+            || !publicationSuggestion.isEmpty()
             || !abstract.isEmpty();
     }
 };
@@ -78,6 +99,7 @@ private:
     static QString extractArxivIdFromPdfText(const QString &text);
     static QString extractVenueFromPdfText(const QString &text);
     static QString extractIssueNumberFromPdfText(const QString &text);
+    static QString extractPublicationSuggestionFromPdfText(const QString &text);
     static QString extractPublicationDateFromPdfText(const QString &text);
     static QString extractAbstractFromPdfText(const QString &text);
     static QString extractKeywordsFromPdfText(const QString &text);
@@ -87,6 +109,7 @@ private:
     static QString extractAuthorsFromPdfText(const QStringList &chunks, const QString &title);
     static QStringList splitAuthorNames(const QString &value);
     IdType findOrCreateAuthor(const QString &name) const;
+    void resolvePendingAuthors();
     void refreshSelectedAuthorList();
     void refreshAttachmentList();
 
@@ -116,6 +139,7 @@ private:
 
     // 内部数据
     std::vector<IdType> m_selectedAuthorIds;
+    QStringList         m_pendingAuthorNames;
     IdType              m_selectedSourceId;
     IdType              m_currentPaperId = INVALID_ID;
     std::vector<IdType> m_selectedAttachmentIds;
