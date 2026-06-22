@@ -33,6 +33,8 @@ struct PdfMetadata
     QString rawText;
     QString metadataSource;
     QString confidenceSummary;
+    QString parserWarning;
+    bool titleCanUseForOnlineSearch = false;
     QString doiSource;
     QString titleSource;
     QString authorSource;

@@ -19,6 +19,7 @@
 #include <QFile>
 #include <QDir>
 #include <QDateTime>
+#include <QDebug>
 #include <QProgressDialog>
 #include <QStandardPaths>
 #include <QCoreApplication>
@@ -149,12 +150,15 @@ bool looksLikeSectionHeading(const QString &value)
     if (lower == QStringLiteral("abstract")
         || lower == QStringLiteral("keywords")
         || lower == QStringLiteral("index terms")
-        || lower == QStringLiteral("references")) {
+        || lower == QStringLiteral("references")
+        || lower == QStringLiteral("bibliography")
+        || lower == QStringLiteral("appendix")
+        || lower == QStringLiteral("related work")) {
         return true;
     }
 
     const QRegularExpression sectionRe(
-        QStringLiteral(R"(^(\d+(\.\d+)*|[ivxlcdm]+)\.?\s+(abstract|introduction|background|related work|references|conclusion)\b)"),
+        QStringLiteral(R"(^(\d+(\.\d+)*|[ivxlcdm]+)\.?\s+(abstract|introduction|background|related work|references|bibliography|appendix|conclusion)\b)"),
         QRegularExpression::CaseInsensitiveOption);
     return sectionRe.match(lower).hasMatch();
 }
@@ -292,27 +296,28 @@ bool hasOnlineLookupClue(const PdfMetadata &metadata)
 {
     return !metadata.doi.trimmed().isEmpty()
         || !metadata.arxivId.trimmed().isEmpty()
-        || metadata.title.simplified().size() >= 5;
+        || (metadata.titleCanUseForOnlineSearch && metadata.title.simplified().size() >= 5);
 }
 
 OnlineMetadataService::LookupResult lookupOnlineMetadata(const PdfMetadata &localMetadata)
 {
     if (!localMetadata.arxivId.trimmed().isEmpty()) {
+        qDebug() << "[PDF metadata] online lookup: arXiv";
         return OnlineMetadataService::lookupByArxivId(localMetadata.arxivId);
     }
     if (!localMetadata.doi.trimmed().isEmpty()) {
+        qDebug() << "[PDF metadata] online lookup: DOI";
         return OnlineMetadataService::lookupByDoi(localMetadata.doi);
     }
-    const bool titleLooksReliable = localMetadata.title.simplified().size() >= 5
-        && (localMetadata.titleSource.contains(QStringLiteral("PDF 元数据"))
-            || localMetadata.titleSource.contains(QStringLiteral("首页文本")));
-    if (titleLooksReliable) {
+    if (localMetadata.titleCanUseForOnlineSearch && localMetadata.title.simplified().size() >= 5) {
+        qDebug() << "[PDF metadata] online lookup: title";
         return OnlineMetadataService::lookupByTitle(localMetadata.title);
     }
 
     OnlineMetadataService::LookupResult result;
     result.success = false;
     result.errorMessage = QStringLiteral("本地解析未得到 DOI、arXiv ID 或可信标题候选");
+    qDebug() << "[PDF metadata] online lookup: none";
     return result;
 }
 
@@ -332,9 +337,12 @@ QString confidenceTextForOnlineResult(const OnlineMetadataService::LookupResult 
 PdfMetadata localMetadataWithSummary(PdfMetadata metadata, const QString &summary)
 {
     metadata.metadataSource = QStringLiteral("Local");
-    metadata.confidenceSummary = summary.isEmpty()
+    const QString baseSummary = summary.isEmpty()
         ? QStringLiteral("本地 PDF 解析，低/中可信度，请检查")
         : summary;
+    metadata.confidenceSummary = metadata.parserWarning.isEmpty()
+        ? baseSummary
+        : QStringLiteral("%1\n%2").arg(metadata.parserWarning, baseSummary);
     if (metadata.titleSource.isEmpty() && !metadata.title.isEmpty()) {
         metadata.titleSource = QStringLiteral("本地 PDF 解析，中可信度");
     }
@@ -359,7 +367,9 @@ PdfMetadata mergeMetadata(const PdfMetadata &localMetadata, const OnlineMetadata
     merged.metadataSource = online.sourceName == QStringLiteral("Crossref title search")
         ? QStringLiteral("Mixed")
         : online.sourceName;
-    merged.confidenceSummary = confidence;
+    merged.confidenceSummary = merged.parserWarning.isEmpty()
+        ? confidence
+        : QStringLiteral("%1\n%2").arg(merged.parserWarning, confidence);
 
     if (!online.doi.trimmed().isEmpty()) {
         merged.doi = online.doi.trimmed();
@@ -795,15 +805,21 @@ void PaperDialog::onSelectFile()
                     QApplication::processEvents();
 
                     const OnlineMetadataService::LookupResult online = lookupOnlineMetadata(metadata);
+                    qDebug() << "[PDF metadata] online lookup result:"
+                             << online.sourceName << online.success << online.errorMessage;
                     progress.close();
                     metadata = mergeMetadata(metadata, online);
+                    qDebug() << "[PDF metadata] merged title:" << metadata.title;
+                    qDebug() << "[PDF metadata] merged authors:" << metadata.author;
                 } else {
                     metadata = localMetadataWithSummary(metadata,
                         QStringLiteral("本地 PDF 解析未得到 DOI、arXiv ID 或可信标题候选，已使用本地结果。"));
+                    qDebug() << "[PDF metadata] online lookup skipped: no clue";
                 }
             } else {
                 metadata = localMetadataWithSummary(metadata,
                     QStringLiteral("当前已关闭在线元数据查询，以下结果来自本地 PDF 解析。"));
+                qDebug() << "[PDF metadata] online lookup disabled";
             }
 
             PdfImportPreviewDialog preview(this);
@@ -1120,6 +1136,12 @@ static QString findPdfTool(const QString &name)
     if (QFile::exists(toolsPath)) return QDir::toNativeSeparators(toolsPath);
 
     return QString();
+}
+
+static bool hasPdfExternalTextTool()
+{
+    return !findPdfTool(QStringLiteral("pdftotext")).isEmpty()
+        || !findPdfTool(QStringLiteral("mutool")).isEmpty();
 }
 
 QString PaperDialog::extractPdfTextWithExternalTool(const QString &filePath)
@@ -1961,6 +1983,8 @@ QString PaperDialog::extractAuthorsFromPdfText(const QStringList &chunks, const 
             || lower.contains(QStringLiteral("table"))
             || lower.contains(QStringLiteral("section"))
             || lower.contains(QStringLiteral("references"))
+            || lower.contains(QStringLiteral("bibliography"))
+            || lower.contains(QStringLiteral("related work"))
             || lower.contains(QStringLiteral("appendix"))) {
             break;
         }
@@ -2210,23 +2234,47 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
         return match.hasMatch() ? decodePdfValue(match.captured(1)).trimmed() : QString();
     };
 
+    const bool externalToolsAvailable = hasPdfExternalTextTool();
     const QString externalText = extractPdfTextWithExternalTool(filePath);
     const QString internalText = extractPdfTextFromPdfData(data);
-    QString plainText = externalText;
-    if (!internalText.isEmpty() && !plainText.contains(internalText.left(qMin(80, internalText.size())))) {
-        if (!plainText.isEmpty()) {
-            plainText.append('\n');
-        }
-        plainText.append(internalText);
-    }
+    const bool hasExternalText = !externalText.trimmed().isEmpty();
+    const bool hasInternalText = !internalText.trimmed().isEmpty();
+
+    auto hasAbstractBoundary = [](const QString &value) {
+        return value.contains(QRegularExpression(
+            QStringLiteral(R"((^|\n)\s*(abstract|摘要)\b)"),
+            QRegularExpression::CaseInsensitiveOption));
+    };
+
+    const bool internalHasAbstractBoundary = hasInternalText && hasAbstractBoundary(internalText);
+    const bool useInternalForFrontMatter = !hasExternalText && internalHasAbstractBoundary;
+
+    qDebug() << "[PDF metadata] externalText:" << hasExternalText
+             << "internalText:" << hasInternalText
+             << "externalToolsAvailable:" << externalToolsAvailable;
+
+    QString plainText = hasExternalText ? externalText : internalText;
     plainText = normalizeExtractedPdfText(plainText);
-    const QStringList textChunks = firstMeaningfulPdfLines(plainText);
+    const QString frontMatterSourceText = hasExternalText
+        ? externalText
+        : (useInternalForFrontMatter ? internalText : QString());
+    const QStringList textChunks = firstMeaningfulPdfLines(frontMatterSourceText);
     const QString frontMatterText = textChunks.join(QStringLiteral("\n"));
+
+    if (!hasExternalText) {
+        meta.parserWarning = !externalToolsAvailable
+            ? QStringLiteral("未检测到 pdftotext / mutool，本次仅使用低可信度内部 PDF 解析，识别结果可能不准确。")
+            : QStringLiteral("外部 PDF 文本工具未能提取有效首页文本，本次使用低可信度内部 PDF 解析，请检查结果。");
+        meta.confidenceSummary = meta.parserWarning;
+    }
 
     const QString titleFromText = collapseSpacedInitialCaps(extractTitleFromPdfText(textChunks));
     if (!titleFromText.isEmpty()) {
         meta.title = titleFromText;
-        meta.titleSource = QStringLiteral("来自首页文本推断，中可信度");
+        meta.titleSource = hasExternalText
+            ? QStringLiteral("来自 pdftotext / mutool 首页文本推断，中可信度")
+            : QStringLiteral("来自内部 PDF stream 解析，低可信度，请检查");
+        meta.titleCanUseForOnlineSearch = hasExternalText;
     }
 
     const QString pdfTitle = collapseSpacedInitialCaps(takeMatch(
@@ -2235,12 +2283,15 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
     if (meta.title.isEmpty() && !isWeakPdfTitle(pdfTitle)) {
         meta.title = pdfTitle;
         meta.titleSource = QStringLiteral("来自 PDF 元数据，高可信度");
+        meta.titleCanUseForOnlineSearch = true;
     }
 
     const QString authorsFromText = extractAuthorsFromPdfText(textChunks, meta.title);
     if (!authorsFromText.isEmpty()) {
         meta.author = authorsFromText;
-        meta.authorSource = QStringLiteral("来自首页标题下方文本推断，中可信度，需人工确认");
+        meta.authorSource = hasExternalText
+            ? QStringLiteral("来自 pdftotext / mutool 首页标题下方文本推断，中可信度，需人工确认")
+            : QStringLiteral("来自内部 PDF stream 标题下方文本推断，低可信度，请检查");
     }
 
     const QString pdfAuthor = takeMatch(
@@ -2267,7 +2318,9 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
     } else {
         meta.keywords = extractKeywordsFromPdfText(plainText);
         if (!meta.keywords.isEmpty()) {
-            meta.keywordsSource = QStringLiteral("来自 Keywords / Index Terms 文本推断，中可信度");
+            meta.keywordsSource = hasExternalText
+                ? QStringLiteral("来自 Keywords / Index Terms 文本推断，中可信度")
+                : QStringLiteral("来自内部 PDF stream 文本推断，低可信度，请检查");
         }
     }
 
@@ -2281,7 +2334,9 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
     meta.publicationDate = normalizePdfDate(firstNonEmpty({textDate, creationDate, modDate}));
     if (!meta.publicationDate.isEmpty()) {
         meta.publicationDateSource = !textDate.isEmpty()
-            ? QStringLiteral("来自首页/前几页日期文本推断，中可信度")
+            ? (hasExternalText
+                ? QStringLiteral("来自首页/前几页日期文本推断，中可信度")
+                : QStringLiteral("来自内部 PDF stream 日期文本推断，低可信度，请检查"))
             : QStringLiteral("来自 PDF 创建/修改日期，低可信度，请确认是否为发表时间");
     }
 
@@ -2305,17 +2360,23 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
 
     meta.doi = extractDoiFromPdfText(frontMatterText);
     if (!meta.doi.isEmpty()) {
-        meta.doiSource = QStringLiteral("来自首页 Abstract 前区域文本识别，高可信度");
+        meta.doiSource = hasExternalText
+            ? QStringLiteral("来自首页 Abstract 前区域文本识别，高可信度")
+            : QStringLiteral("来自内部 PDF stream Abstract 前区域文本识别，低可信度，请检查");
     }
     meta.arxivId = extractArxivIdFromPdfText(frontMatterText);
     if (meta.arxivId.isEmpty()) {
-        meta.arxivId = extractArxivIdFromPdfText(plainText);
+        meta.arxivId = hasExternalText
+            ? extractArxivIdFromPdfText(plainText)
+            : extractArxivIdFromPdfText(internalText);
     }
     if (meta.arxivId.isEmpty()) {
         meta.arxivId = extractArxivIdFromPdfText(text);
     }
     if (!meta.arxivId.isEmpty()) {
-        meta.arxivSource = QStringLiteral("来自前几页文本识别，高可信度");
+        meta.arxivSource = hasExternalText
+            ? QStringLiteral("来自 pdftotext / mutool 前几页文本识别，高可信度")
+            : QStringLiteral("来自内部 PDF stream 文本识别，中可信度");
     }
 
     const QString subjectVenue = extractVenueFromPdfText(meta.subject);
@@ -2345,9 +2406,19 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
         meta.abstract = meta.subject;
         meta.abstractSource = QStringLiteral("来自 PDF 主题元数据，低可信度，请检查");
     } else if (!meta.abstract.isEmpty()) {
-        meta.abstractSource = QStringLiteral("来自 Abstract 到 Introduction 区域文本推断，中可信度");
+        meta.abstractSource = hasExternalText
+            ? QStringLiteral("来自 Abstract 到 Introduction 区域文本推断，中可信度")
+            : QStringLiteral("来自内部 PDF stream Abstract 区域文本推断，低可信度，请检查");
+    }
+    if (!externalToolsAvailable && meta.doi.isEmpty() && meta.arxivId.isEmpty()) {
+        meta.titleCanUseForOnlineSearch = false;
     }
     meta.rawText = plainText.left(5000);
+
+    qDebug() << "[PDF metadata] title:" << meta.title << meta.titleSource;
+    qDebug() << "[PDF metadata] titleCanUseForOnlineSearch:" << meta.titleCanUseForOnlineSearch;
+    qDebug() << "[PDF metadata] arxiv:" << meta.arxivId;
+    qDebug() << "[PDF metadata] doi:" << meta.doi;
 
     return meta;
 }
