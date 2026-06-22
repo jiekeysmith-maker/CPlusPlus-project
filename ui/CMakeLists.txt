@@ -27,6 +27,8 @@ set(PROJECT_SOURCES
         src/core/SerializationUtils.cpp
         src/core/Author.h
         src/core/Author.cpp
+        src/core/AuthorCatalog.h
+        src/core/AuthorCatalog.cpp
         src/core/Source.h
         src/core/Journal.h
         src/core/Journal.cpp
@@ -34,6 +36,8 @@ set(PROJECT_SOURCES
         src/core/Conference.cpp
         src/core/Attachment.h
         src/core/Attachment.cpp
+        src/core/AttachmentFileUtils.h
+        src/core/AttachmentFileUtils.cpp
         src/core/Paper.h
         src/core/Paper.cpp
         src/core/Catalog.h

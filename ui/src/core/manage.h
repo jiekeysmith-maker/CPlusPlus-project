@@ -3,6 +3,7 @@
 
 #include "Attachment.h"
 #include "Author.h"
+#include "AuthorCatalog.h"
 #include "Catalog.h"
 #include "Conference.h"
 #include "CoreTypes.h"

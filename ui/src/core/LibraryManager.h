@@ -3,6 +3,7 @@
 
 #include "Attachment.h"
 #include "Author.h"
+#include "AuthorCatalog.h"
 #include "Catalog.h"
 #include "Conference.h"
 #include "Journal.h"
@@ -21,12 +22,14 @@ private:
     std::map<IdType, Attachment> m_attachments;
     std::map<IdType, std::shared_ptr<Source>> m_sources;
     std::map<IdType, Catalog> m_catalogs;
+    std::map<IdType, AuthorCatalog> m_authorCatalogs;
 
     IdType m_nextAuthorId;
     IdType m_nextPaperId;
     IdType m_nextAttachmentId;
     IdType m_nextSourceId;
     IdType m_nextCatalogId;
+    IdType m_nextAuthorCatalogId;
 
     LibraryManager();
     ~LibraryManager() = default;
@@ -74,6 +77,16 @@ public:
     bool addPaperToCatalog(IdType paperId, IdType catalogId);
     bool removePaperFromCatalog(IdType paperId, IdType catalogId);
 
+    IdType addAuthorCatalog(const AuthorCatalog& catalog);
+    bool removeAuthorCatalog(IdType id);
+    bool updateAuthorCatalog(IdType id, const AuthorCatalog& newData);
+    AuthorCatalog* findAuthorCatalog(IdType id);
+    const std::map<IdType, AuthorCatalog>& getAllAuthorCatalogs() const { return m_authorCatalogs; }
+
+    bool addAuthorToCatalog(IdType authorId, IdType catalogId);
+    bool removeAuthorFromCatalog(IdType authorId, IdType catalogId);
+    std::vector<Author> getAuthorsInCatalog(IdType catalogId) const;
+
     std::vector<Paper> searchPapersByTitle(const std::string& keyword) const;
     std::vector<Paper> searchPapersByAuthor(IdType authorId) const;
     std::vector<Paper> searchPapersByKeyword(const std::string& keyword) const;
@@ -86,6 +99,7 @@ public:
 
     bool saveToFile(const std::string& filePath) const;
     bool loadFromFile(const std::string& filePath);
+    bool importFromFile(const std::string& filePath);
     bool saveToDirectory(const std::string& directoryPath) const;
     bool loadFromDirectory(const std::string& directoryPath);
 

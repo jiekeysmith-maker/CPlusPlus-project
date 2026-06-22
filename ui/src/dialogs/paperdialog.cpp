@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cstring>
 
+#include "AttachmentFileUtils.h"
 #include "StoragePaths.h"
 
 #if __has_include(<zlib.h>)
@@ -305,7 +306,7 @@ public:
 // ========== PaperDialog ==========
 
 PaperDialog::PaperDialog(QWidget *parent)
-    : QDialog(parent), m_selectedSourceId(INVALID_ID)
+    : QDialog(parent), m_selectedSourceId(INVALID_ID), m_currentPaperId(INVALID_ID)
 {
     setupUi();
     setModal(true);
@@ -379,7 +380,9 @@ void PaperDialog::setupUi()
     auto *tabAtt = new QWidget;
     auto *formAtt = new QFormLayout(tabAtt);
     m_attachmentList = new QListWidget;
-    m_btnSelectAttachments = new QPushButton(QStringLiteral("选择附件..."));
+    m_btnSelectAttachments = new QPushButton(QStringLiteral("添加附件"));
+    m_btnSelectAttachments->setEnabled(false);
+    m_btnSelectAttachments->setToolTip(QStringLiteral("请先保存文献后再添加附件。"));
     auto *attLayout = new QVBoxLayout;
     attLayout->addWidget(m_attachmentList);
     attLayout->addWidget(m_btnSelectAttachments);
@@ -398,7 +401,7 @@ void PaperDialog::setupUi()
 
     connect(m_btnSelectAuthors,    &QPushButton::clicked, this, &PaperDialog::onSelectAuthors);
     connect(m_btnSelectSource,     &QPushButton::clicked, this, &PaperDialog::onSelectSource);
-    connect(m_btnSelectAttachments, &QPushButton::clicked, this, &PaperDialog::onSelectAttachments);
+    connect(m_btnSelectAttachments, &QPushButton::clicked, this, &PaperDialog::onAddAttachments);
     connect(m_btnSelectFile,       &QPushButton::clicked, this, &PaperDialog::onSelectFile);
 }
 
@@ -433,19 +436,49 @@ void PaperDialog::onSelectSource()
     }
 }
 
-void PaperDialog::onSelectAttachments()
+void PaperDialog::onAddAttachments()
 {
-    AttachmentPickerDialog dlg(this, m_selectedAttachmentIds);
-    if (dlg.exec() == QDialog::Accepted) {
-        m_selectedAttachmentIds = dlg.selectedIds;
-        m_attachmentList->clear();
-        auto &mgr = LibraryManager::getInstance();
-        for (IdType id : m_selectedAttachmentIds) {
-            Attachment *att = mgr.findAttachment(id);
-            m_attachmentList->addItem(QString("[%1] %2")
-                .arg(id)
-                .arg(att ? QString::fromStdString(att->getName()) : QStringLiteral("未知")));
+    if (m_currentPaperId == INVALID_ID) {
+        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先保存文献后再添加附件。"));
+        return;
+    }
+
+    Paper *paper = LibraryManager::getInstance().findPaper(m_currentPaperId);
+    if (!paper) {
+        QMessageBox::warning(this, QStringLiteral("添加失败"), QStringLiteral("当前文献不存在。"));
+        return;
+    }
+
+    const QStringList sourcePaths = QFileDialog::getOpenFileNames(
+        this,
+        QStringLiteral("添加附件"),
+        QString(),
+        noteAttachmentFileFilter());
+    if (sourcePaths.isEmpty()) {
+        return;
+    }
+
+    const AttachmentUploadResult uploadResult = uploadNoteAttachmentsForPaper(*paper, sourcePaths);
+    if (uploadResult.successCount > 0) {
+        if (Paper *updatedPaper = LibraryManager::getInstance().findPaper(m_currentPaperId)) {
+            m_selectedAttachmentIds = updatedPaper->getAttachmentIds();
+        } else {
+            for (IdType id : uploadResult.attachmentIds) {
+                if (std::find(m_selectedAttachmentIds.begin(), m_selectedAttachmentIds.end(), id)
+                    == m_selectedAttachmentIds.end()) {
+                    m_selectedAttachmentIds.push_back(id);
+                }
+            }
         }
+        refreshAttachmentList();
+        emit attachmentsChanged(m_currentPaperId, uploadResult.successCount);
+    }
+
+    if (!uploadResult.failedFiles.isEmpty()) {
+        QMessageBox::warning(
+            this,
+            QStringLiteral("部分附件添加失败"),
+            QStringLiteral("以下文件添加失败：\n%1").arg(uploadResult.failedFiles.join(QLatin1Char('\n'))));
     }
 }
 
@@ -544,6 +577,7 @@ Paper PaperDialog::getPaper() const
 
 void PaperDialog::setPaper(const Paper &p)
 {
+    m_currentPaperId = p.getId();
     m_codeEdit->setText(QString::fromStdString(p.getCode()));
     m_titleEdit->setText(QString::fromStdString(p.getTitle()));
     m_dateEdit->setText(QString::fromStdString(p.getPublishDate()));
@@ -581,7 +615,17 @@ void PaperDialog::setPaper(const Paper &p)
     }
 
     m_selectedAttachmentIds = p.getAttachmentIds();
+    m_btnSelectAttachments->setEnabled(m_currentPaperId != INVALID_ID);
+    m_btnSelectAttachments->setToolTip(m_currentPaperId == INVALID_ID
+        ? QStringLiteral("请先保存文献后再添加附件。")
+        : QString());
+    refreshAttachmentList();
+}
+
+void PaperDialog::refreshAttachmentList()
+{
     m_attachmentList->clear();
+    auto &mgr = LibraryManager::getInstance();
     for (IdType id : m_selectedAttachmentIds) {
         Attachment *att = mgr.findAttachment(id);
         m_attachmentList->addItem(QString("[%1] %2")

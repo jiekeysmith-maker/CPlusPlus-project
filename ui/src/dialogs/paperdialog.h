@@ -46,13 +46,16 @@ public:
     Paper getPaper() const;
     void setPaper(const Paper &p);
 
+signals:
+    void attachmentsChanged(IdType paperId, int uploadedCount);
+
 protected:
     void accept() override;
 
 private slots:
     void onSelectAuthors();
     void onSelectSource();
-    void onSelectAttachments();
+    void onAddAttachments();
     void onSelectFile();
 
 private:
@@ -85,6 +88,7 @@ private:
     static QStringList splitAuthorNames(const QString &value);
     IdType findOrCreateAuthor(const QString &name) const;
     void refreshSelectedAuthorList();
+    void refreshAttachmentList();
 
     // 基本信息
     QLineEdit *m_codeEdit;
@@ -113,6 +117,7 @@ private:
     // 内部数据
     std::vector<IdType> m_selectedAuthorIds;
     IdType              m_selectedSourceId;
+    IdType              m_currentPaperId = INVALID_ID;
     std::vector<IdType> m_selectedAttachmentIds;
 };
 

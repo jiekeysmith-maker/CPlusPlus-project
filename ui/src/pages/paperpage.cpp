@@ -192,7 +192,7 @@ void PaperPage::refreshTable()
 void PaperPage::onAdd()
 {
     PaperDialog dlg(this);
-    dlg.setWindowTitle(QStringLiteral("新增文献"));
+    dlg.setWindowTitle(QStringLiteral("上传/新增文献"));
     if (dlg.exec() == QDialog::Accepted) {
         LibraryManager::getInstance().addPaper(dlg.getPaper());
         refreshTable();
