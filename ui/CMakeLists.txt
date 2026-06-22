@@ -36,6 +36,8 @@ set(PROJECT_SOURCES
         src/core/Conference.cpp
         src/core/Attachment.h
         src/core/Attachment.cpp
+        src/core/AttachmentFileUtils.h
+        src/core/AttachmentFileUtils.cpp
         src/core/Paper.h
         src/core/Paper.cpp
         src/core/Catalog.h

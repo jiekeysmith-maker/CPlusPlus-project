@@ -9,6 +9,7 @@
 #include "manage.h"
 
 class QCloseEvent;
+class QComboBox;
 class QEvent;
 class QLabel;
 class QLineEdit;
@@ -57,7 +58,9 @@ private slots:
     void onOpenPaperAttachment(int row, int column);
     void onViewPaperDetail();
     void onPaperSelectionChanged();
-    void onOpenDetailAttachment();
+    void onOpenFullText();
+    void onUploadPaperNote();
+    void onOpenSelectedPaperNote();
     void onSave();
     void onLoad();
     void onImport();
@@ -123,6 +126,8 @@ private:
     void updateToolbarForMode();
     void setDetailRowLabel(QWidget *field, const QString &text);
     void setDetailRowVisible(QWidget *field, bool visible);
+    void setAttachmentControlsVisible(bool visible);
+    void refreshNoteControls(IdType paperId);
     void selectSystemNode(const QString &key);
     void showStatus(const QString &msg);
     void restoreSelectionAfterReload(const QString &key);
@@ -147,7 +152,14 @@ private:
     QLabel *m_detailKeywordsLabel = nullptr;
     QLabel *m_detailFilePathLabel = nullptr;
     QLabel *m_detailHeadingLabel = nullptr;
+    QLabel *m_attachmentSectionLabel = nullptr;
     QFormLayout *m_detailForm = nullptr;
+    QWidget *m_fullTextRowWidget = nullptr;
+    QWidget *m_noteRowWidget = nullptr;
+    QPushButton *m_openFullTextButton = nullptr;
+    QComboBox *m_noteComboBox = nullptr;
+    QPushButton *m_uploadNoteButton = nullptr;
+    QPushButton *m_openNoteButton = nullptr;
     QLineEdit *m_searchEdit = nullptr;
     QString m_defaultDataPath;
     QString m_currentNodeKey;
@@ -162,7 +174,6 @@ private:
     QAction *m_loadAction = nullptr;
     QAction *m_importAction = nullptr;
     QPushButton *m_viewDetailButton = nullptr;
-    QPushButton *m_openDetailAttachmentButton = nullptr;
     QPushButton *m_searchButton = nullptr;
     QPushButton *m_showAllButton = nullptr;
     QPushButton *m_selectAllButton = nullptr;

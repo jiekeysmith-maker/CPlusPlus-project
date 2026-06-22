@@ -3,6 +3,7 @@
 
 #include <QAction>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
@@ -17,6 +18,7 @@
 #include <QFormLayout>
 #include <QFrame>
 #include <QHeaderView>
+#include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -29,6 +31,7 @@
 #include <QSplitter>
 #include <QTableWidget>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QToolBar>
 #include <QTreeWidget>
@@ -42,6 +45,7 @@
 
 #include "paperdialog.h"
 #include "authordialog.h"
+#include "AttachmentFileUtils.h"
 #include "StoragePaths.h"
 
 namespace {
@@ -77,6 +81,33 @@ bool pathIsInsideDirectory(const QString &filePath, const QString &directoryPath
     return file == dir || file.startsWith(dir + QLatin1Char('/'));
 }
 
+bool pathIsStrictlyInsideDirectory(const QString &path, const QString &directoryPath)
+{
+    if (path.trimmed().isEmpty() || directoryPath.trimmed().isEmpty()) {
+        return false;
+    }
+
+    QString target = normalizedAbsolutePath(path);
+    QString dir = QDir::fromNativeSeparators(QDir::cleanPath(QDir(directoryPath).absolutePath()));
+#ifdef Q_OS_WIN
+    target = target.toLower();
+    dir = dir.toLower();
+#endif
+    return target != dir && target.startsWith(dir + QLatin1Char('/'));
+}
+
+bool pathIsInsideDataDirectory(const QString &path)
+{
+    return pathIsInsideDirectory(path, StoragePaths::dataRootPath());
+}
+
+bool isDeletableAttachmentDirectory(const QString &path)
+{
+    return !path.trimmed().isEmpty()
+        && QFileInfo(path).isDir()
+        && pathIsStrictlyInsideDirectory(path, StoragePaths::attachmentsDirectoryPath());
+}
+
 QString normalizedComparablePath(const QString &path)
 {
     QString normalized = normalizedAbsolutePath(QDir::fromNativeSeparators(path));
@@ -85,6 +116,7 @@ QString normalizedComparablePath(const QString &path)
 #endif
     return normalized;
 }
+
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -312,13 +344,55 @@ void MainWindow::setupDetailPanel()
     m_detailForm->addRow(QStringLiteral("发表时间:"), m_detailPublishDateLabel);
     m_detailForm->addRow(QStringLiteral("上传时间:"), m_detailUploadTimeLabel);
     m_detailForm->addRow(QStringLiteral("关键词:"), m_detailKeywordsLabel);
-    m_detailForm->addRow(QStringLiteral("附件链接:"), m_detailFilePathLabel);
+    m_detailForm->addRow(QString(), m_detailFilePathLabel);
 
-    m_openDetailAttachmentButton = new QPushButton(QStringLiteral("打开附件"), content);
-    m_openDetailAttachmentButton->setEnabled(false);
-    connect(m_openDetailAttachmentButton, &QPushButton::clicked,
-            this, &MainWindow::onOpenDetailAttachment);
-    m_detailForm->addRow(QString(), m_openDetailAttachmentButton);
+    m_attachmentSectionLabel = new QLabel(QStringLiteral("附件:"), content);
+    QFont attachmentFont = m_attachmentSectionLabel->font();
+    attachmentFont.setBold(true);
+    m_attachmentSectionLabel->setFont(attachmentFont);
+    m_attachmentSectionLabel->setAlignment(Qt::AlignLeft);
+    m_detailForm->addRow(m_attachmentSectionLabel);
+
+    m_fullTextRowWidget = new QWidget(content);
+    auto *fullTextLayout = new QHBoxLayout(m_fullTextRowWidget);
+    fullTextLayout->setContentsMargins(0, 0, 0, 0);
+    fullTextLayout->setSpacing(8);
+    m_openFullTextButton = new QPushButton(QStringLiteral("打开全文"), m_fullTextRowWidget);
+    m_openFullTextButton->setEnabled(false);
+    fullTextLayout->addWidget(m_openFullTextButton);
+    fullTextLayout->addStretch(1);
+    connect(m_openFullTextButton, &QPushButton::clicked,
+            this, &MainWindow::onOpenFullText);
+    m_detailForm->addRow(QStringLiteral("全文文件:"), m_fullTextRowWidget);
+
+    m_noteRowWidget = new QWidget(content);
+    auto *noteLayout = new QVBoxLayout(m_noteRowWidget);
+    noteLayout->setContentsMargins(0, 0, 0, 0);
+    noteLayout->setSpacing(6);
+    auto *noteButtonLayout = new QHBoxLayout;
+    noteButtonLayout->setContentsMargins(0, 0, 0, 0);
+    noteButtonLayout->setSpacing(6);
+    m_noteComboBox = new QComboBox(m_noteRowWidget);
+    m_noteComboBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    m_uploadNoteButton = new QPushButton(QStringLiteral("上传笔记"), m_noteRowWidget);
+    m_openNoteButton = new QPushButton(QStringLiteral("打开笔记"), m_noteRowWidget);
+    m_openNoteButton->setEnabled(false);
+    noteButtonLayout->addWidget(m_uploadNoteButton);
+    noteButtonLayout->addWidget(m_openNoteButton);
+    noteButtonLayout->addStretch(1);
+    noteLayout->addLayout(noteButtonLayout);
+    noteLayout->addWidget(m_noteComboBox);
+    connect(m_uploadNoteButton, &QPushButton::clicked,
+            this, &MainWindow::onUploadPaperNote);
+    connect(m_openNoteButton, &QPushButton::clicked,
+            this, &MainWindow::onOpenSelectedPaperNote);
+    connect(m_noteComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int) {
+                if (m_openNoteButton && m_noteComboBox) {
+                    m_openNoteButton->setEnabled(m_noteComboBox->currentData().toLongLong() != INVALID_ID);
+                }
+            });
+    m_detailForm->addRow(QStringLiteral("笔记:"), m_noteRowWidget);
 
     scrollArea->setWidget(content);
     panelLayout->addWidget(scrollArea, 1);
@@ -849,6 +923,57 @@ void MainWindow::setDetailRowVisible(QWidget *field, bool visible)
     field->setVisible(visible);
 }
 
+void MainWindow::setAttachmentControlsVisible(bool visible)
+{
+    setDetailRowVisible(m_attachmentSectionLabel, visible);
+    setDetailRowVisible(m_fullTextRowWidget, visible);
+    setDetailRowVisible(m_noteRowWidget, visible);
+}
+
+void MainWindow::refreshNoteControls(IdType paperId)
+{
+    if (!m_noteComboBox || !m_openNoteButton) {
+        return;
+    }
+
+    struct NoteItem {
+        QString displayName;
+        IdType attachmentId = INVALID_ID;
+    };
+
+    std::vector<NoteItem> notes;
+    for (const Attachment &attachment : LibraryManager::getInstance().getAttachmentsByPaper(paperId)) {
+        const QString filePath = QString::fromStdString(attachment.getFilePath()).trimmed();
+        if (filePath.isEmpty()) {
+            continue;
+        }
+
+        QString displayName = QString::fromStdString(attachment.getName()).trimmed();
+        if (displayName.isEmpty()) {
+            displayName = QFileInfo(filePath).fileName();
+        }
+        notes.push_back({displayName, attachment.getId()});
+    }
+
+    std::sort(notes.begin(), notes.end(), [](const NoteItem &a, const NoteItem &b) {
+        return QString::localeAwareCompare(a.displayName, b.displayName) < 0;
+    });
+
+    const QSignalBlocker blocker(m_noteComboBox);
+    m_noteComboBox->clear();
+    if (notes.empty()) {
+        m_noteComboBox->addItem(QStringLiteral("暂无笔记"), static_cast<qint64>(INVALID_ID));
+        m_openNoteButton->setEnabled(false);
+        return;
+    }
+
+    for (const NoteItem &note : notes) {
+        m_noteComboBox->addItem(note.displayName, static_cast<qint64>(note.attachmentId));
+    }
+    m_noteComboBox->setCurrentIndex(0);
+    m_openNoteButton->setEnabled(true);
+}
+
 void MainWindow::updateDetailPanel(IdType paperId)
 {
     Paper *paper = LibraryManager::getInstance().findPaper(paperId);
@@ -869,8 +994,7 @@ void MainWindow::updateDetailPanel(IdType paperId)
             LibraryManager::getInstance().getSourceName(paper->getSourceId())));
     }
 
-    const QString filePath = QString::fromStdString(paper->getFilePath());
-    const QString nativeFilePath = QDir::toNativeSeparators(filePath);
+    const QString filePath = QDir::fromNativeSeparators(QString::fromStdString(paper->getFilePath()));
 
     m_detailPaperId = paperId;
     m_detailAuthorId = INVALID_ID;
@@ -883,24 +1007,29 @@ void MainWindow::updateDetailPanel(IdType paperId)
     setDetailRowLabel(m_detailPublishDateLabel, QStringLiteral("发表时间:"));
     setDetailRowLabel(m_detailUploadTimeLabel, QStringLiteral("上传时间:"));
     setDetailRowLabel(m_detailKeywordsLabel, QStringLiteral("关键词:"));
-    setDetailRowLabel(m_detailFilePathLabel, QStringLiteral("附件链接:"));
     setDetailRowVisible(m_detailTitleLabel, true);
     setDetailRowVisible(m_detailAuthorsLabel, true);
     setDetailRowVisible(m_detailSourceLabel, true);
     setDetailRowVisible(m_detailPublishDateLabel, true);
     setDetailRowVisible(m_detailUploadTimeLabel, true);
     setDetailRowVisible(m_detailKeywordsLabel, true);
-    setDetailRowVisible(m_detailFilePathLabel, true);
-    setDetailRowVisible(m_openDetailAttachmentButton, true);
+    setDetailRowVisible(m_detailFilePathLabel, false);
+    setAttachmentControlsVisible(true);
     m_detailTitleLabel->setText(valueOrDefault(QString::fromStdString(paper->getTitle())));
     m_detailAuthorsLabel->setText(valueOrDefault(authors));
     m_detailSourceLabel->setText(source);
     m_detailPublishDateLabel->setText(valueOrDefault(QString::fromStdString(paper->getPublishDate())));
     m_detailUploadTimeLabel->setText(valueOrDefault(QString::fromStdString(paper->getUploadTime())));
     m_detailKeywordsLabel->setText(valueOrDefault(paperKeywordsText(*paper)));
-    m_detailFilePathLabel->setText(filePath.trimmed().isEmpty() ? QStringLiteral("无附件") : nativeFilePath);
-    m_detailFilePathLabel->setToolTip(nativeFilePath);
-    m_openDetailAttachmentButton->setEnabled(!filePath.trimmed().isEmpty());
+    m_detailFilePathLabel->clear();
+    m_detailFilePathLabel->setToolTip(QString());
+    if (m_openFullTextButton) {
+        m_openFullTextButton->setEnabled(!filePath.trimmed().isEmpty() && QFile::exists(filePath));
+    }
+    if (m_uploadNoteButton) {
+        m_uploadNoteButton->setEnabled(true);
+    }
+    refreshNoteControls(paperId);
 
     m_detailPanel->show();
 }
@@ -936,7 +1065,7 @@ void MainWindow::updateAuthorDetailPanel(IdType authorId)
     setDetailRowVisible(m_detailUploadTimeLabel, true);
     setDetailRowVisible(m_detailKeywordsLabel, true);
     setDetailRowVisible(m_detailFilePathLabel, false);
-    setDetailRowVisible(m_openDetailAttachmentButton, false);
+    setAttachmentControlsVisible(false);
 
     m_detailTitleLabel->setText(valueOrDefault(QString::fromStdString(author->getName())));
     m_detailAuthorsLabel->setText(valueOrDefault(QString::fromStdString(author->getGender())));
@@ -946,7 +1075,12 @@ void MainWindow::updateAuthorDetailPanel(IdType authorId)
     m_detailKeywordsLabel->setText(authorPapersText(authorId));
     m_detailFilePathLabel->clear();
     m_detailFilePathLabel->setToolTip(QString());
-    m_openDetailAttachmentButton->setEnabled(false);
+    if (m_openFullTextButton) {
+        m_openFullTextButton->setEnabled(false);
+    }
+    if (m_openNoteButton) {
+        m_openNoteButton->setEnabled(false);
+    }
 
     m_detailPanel->show();
 }
@@ -965,9 +1099,20 @@ void MainWindow::clearDetailPanel()
         m_detailFilePathLabel->setText(QStringLiteral("无附件"));
         m_detailFilePathLabel->setToolTip(QString());
     }
-    if (m_openDetailAttachmentButton) {
-        m_openDetailAttachmentButton->setEnabled(false);
+    if (m_openFullTextButton) {
+        m_openFullTextButton->setEnabled(false);
     }
+    if (m_openNoteButton) {
+        m_openNoteButton->setEnabled(false);
+    }
+    if (m_uploadNoteButton) {
+        m_uploadNoteButton->setEnabled(false);
+    }
+    if (m_noteComboBox) {
+        m_noteComboBox->clear();
+        m_noteComboBox->addItem(QStringLiteral("暂无笔记"), static_cast<qint64>(INVALID_ID));
+    }
+    setAttachmentControlsVisible(false);
     if (m_detailPanel) {
         m_detailPanel->hide();
     }
@@ -1011,18 +1156,86 @@ void MainWindow::onPaperSelectionChanged()
     }
 }
 
-void MainWindow::onOpenDetailAttachment()
+void MainWindow::onOpenFullText()
 {
     Paper *paper = LibraryManager::getInstance().findPaper(m_detailPaperId);
     if (!paper) {
         clearDetailPanel();
-        QMessageBox::warning(this, QStringLiteral("无法打开"), QStringLiteral("PDF 文件不存在或路径无效"));
+        QMessageBox::warning(this, QStringLiteral("无法打开"), QStringLiteral("全文文件不存在或路径无效"));
         return;
     }
 
     const QString path = QDir::fromNativeSeparators(QString::fromStdString(paper->getFilePath()));
     if (path.isEmpty() || !QFile::exists(path)) {
-        QMessageBox::warning(this, QStringLiteral("无法打开"), QStringLiteral("PDF 文件不存在或路径无效"));
+        QMessageBox::warning(this, QStringLiteral("无法打开"), QStringLiteral("全文文件不存在或路径无效"));
+        return;
+    }
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(path))) {
+        QMessageBox::warning(this, QStringLiteral("无法打开"), QStringLiteral("系统默认程序无法打开该文件。"));
+    }
+}
+
+void MainWindow::onUploadPaperNote()
+{
+    const IdType paperId = m_detailPaperId;
+    if (paperId == INVALID_ID) {
+        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择并查看一篇文献。"));
+        return;
+    }
+
+    Paper *paper = LibraryManager::getInstance().findPaper(paperId);
+    if (!paper) {
+        clearDetailPanel();
+        QMessageBox::warning(this, QStringLiteral("上传失败"), QStringLiteral("当前文献不存在。"));
+        return;
+    }
+
+    const QStringList sourcePaths = QFileDialog::getOpenFileNames(
+        this,
+        QStringLiteral("上传笔记"),
+        QString(),
+        noteAttachmentFileFilter());
+    if (sourcePaths.isEmpty()) {
+        return;
+    }
+
+    const AttachmentUploadResult uploadResult = uploadNoteAttachmentsForPaper(*paper, sourcePaths);
+
+    if (uploadResult.successCount > 0) {
+        saveDefaultData();
+        updateDetailPanel(paperId);
+        showStatus(QStringLiteral("已上传 %1 个笔记文件").arg(uploadResult.successCount));
+    }
+
+    if (!uploadResult.failedFiles.isEmpty()) {
+        QMessageBox::warning(
+            this,
+            QStringLiteral("部分笔记上传失败"),
+            QStringLiteral("以下文件上传失败：\n%1").arg(uploadResult.failedFiles.join(QLatin1Char('\n'))));
+    }
+}
+
+void MainWindow::onOpenSelectedPaperNote()
+{
+    if (!m_noteComboBox) {
+        return;
+    }
+
+    const IdType attachmentId = static_cast<IdType>(m_noteComboBox->currentData().toLongLong());
+    if (attachmentId == INVALID_ID) {
+        return;
+    }
+
+    Attachment *attachment = LibraryManager::getInstance().findAttachment(attachmentId);
+    if (!attachment) {
+        QMessageBox::warning(this, QStringLiteral("无法打开"), QStringLiteral("笔记文件不存在或路径无效。"));
+        refreshNoteControls(m_detailPaperId);
+        return;
+    }
+
+    const QString path = QDir::fromNativeSeparators(QString::fromStdString(attachment->getFilePath()));
+    if (path.isEmpty() || !QFile::exists(path)) {
+        QMessageBox::warning(this, QStringLiteral("无法打开"), QStringLiteral("笔记文件不存在或路径无效。"));
         return;
     }
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(path))) {
@@ -1076,6 +1289,7 @@ void MainWindow::onSelectAllClicked()
 void MainWindow::onAddPaper()
 {
     PaperDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("上传/新增文献"));
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
@@ -1093,6 +1307,7 @@ void MainWindow::onAddPaper()
 void MainWindow::onAddAuthor()
 {
     AuthorDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("新增作者"));
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
@@ -1121,6 +1336,7 @@ void MainWindow::onEditPaper()
         }
 
         AuthorDialog dialog(this);
+        dialog.setWindowTitle(QStringLiteral("编辑作者"));
         dialog.setEntity(*author);
         if (dialog.exec() != QDialog::Accepted) {
             return;
@@ -1148,7 +1364,16 @@ void MainWindow::onEditPaper()
     }
 
     PaperDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("编辑文献"));
     dialog.setPaper(*paper);
+    connect(&dialog, &PaperDialog::attachmentsChanged, this,
+            [this](IdType changedPaperId, int uploadedCount) {
+                saveDefaultData();
+                if (m_detailPaperId == changedPaperId && m_detailPanel && m_detailPanel->isVisible()) {
+                    updateDetailPanel(changedPaperId);
+                }
+                showStatus(QStringLiteral("已上传 %1 个笔记文件").arg(uploadedCount));
+            });
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
@@ -1201,51 +1426,142 @@ void MainWindow::onDeletePaper()
         QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择要删除的文献。"));
         return;
     }
+    const QString deletePaperPrompt = paperIds.size() == 1
+        ? QStringLiteral("确定删除该文献吗？\n系统将删除该文献记录，并删除保存在 data 目录中的全文文件、附件文件和对应附件文件夹。\ndata 目录外的原始文件不会被删除。")
+        : QStringLiteral("确定删除选中的 %1 条文献吗？\n系统将删除这些文献记录，并删除保存在 data 目录中的全文文件、附件文件和对应附件文件夹。\ndata 目录外的原始文件不会被删除。")
+            .arg(static_cast<int>(paperIds.size()));
     auto reply = QMessageBox::question(
         this,
         QStringLiteral("删除文献"),
-        QStringLiteral("确定删除选中的 %1 条文献吗？系统会同时删除不再被其他文献引用的关联 PDF 文件。")
-            .arg(static_cast<int>(paperIds.size())));
+        deletePaperPrompt);
     if (reply != QMessageBox::Yes) {
         return;
     }
 
     auto &mgr = LibraryManager::getInstance();
-    std::set<QString> pdfPathsToDelete;
+    const std::set<IdType> selectedPaperSet(paperIds.begin(), paperIds.end());
+    std::set<IdType> attachmentIdsToDelete;
+    QMap<QString, QString> filesToDelete;
+    QMap<QString, QString> attachmentDirsToDelete;
+
+    auto rememberDataFile = [&filesToDelete](const QString &rawPath) {
+        const QString path = QDir::fromNativeSeparators(rawPath.trimmed());
+        if (path.isEmpty()) {
+            return;
+        }
+        const QFileInfo info(path);
+        if (info.exists() && info.isFile() && pathIsInsideDataDirectory(path)) {
+            filesToDelete.insert(normalizedComparablePath(path), info.absoluteFilePath());
+        }
+    };
+
+    auto rememberAttachmentDir = [&attachmentDirsToDelete](const QString &rawPath) {
+        const QString path = QDir::fromNativeSeparators(rawPath.trimmed());
+        if (isDeletableAttachmentDirectory(path)) {
+            attachmentDirsToDelete.insert(normalizedComparablePath(path), normalizedAbsolutePath(path));
+        }
+    };
+
     for (IdType paperId : paperIds) {
         if (Paper *paper = mgr.findPaper(paperId)) {
-            const QString filePath = QString::fromStdString(paper->getFilePath()).trimmed();
-            if (!filePath.isEmpty()) {
-                pdfPathsToDelete.insert(normalizedComparablePath(filePath));
+            rememberDataFile(QString::fromStdString(paper->getFilePath()));
+            rememberAttachmentDir(attachmentDirectoryForPaper(*paper));
+
+            std::set<IdType> paperAttachmentIds(paper->getAttachmentIds().begin(), paper->getAttachmentIds().end());
+            for (const Attachment &attachment : mgr.getAttachmentsByPaper(paperId)) {
+                paperAttachmentIds.insert(attachment.getId());
+            }
+
+            for (IdType attachmentId : paperAttachmentIds) {
+                Attachment *attachment = mgr.findAttachment(attachmentId);
+                if (!attachment) {
+                    continue;
+                }
+                attachmentIdsToDelete.insert(attachmentId);
+                const QString attachmentPath = QString::fromStdString(attachment->getFilePath());
+                rememberDataFile(attachmentPath);
+                if (!attachmentPath.trimmed().isEmpty()) {
+                    rememberAttachmentDir(QFileInfo(QDir::fromNativeSeparators(attachmentPath)).absoluteDir().absolutePath());
+                }
             }
         }
     }
 
     const bool detailDeleted = std::find(paperIds.begin(), paperIds.end(), m_detailPaperId) != paperIds.end();
-    for (IdType paperId : paperIds) {
-        mgr.removePaper(paperId);
-    }
 
-    auto isPdfStillReferenced = [&mgr](const QString &pdfPath) {
+    auto fileReferencedByRemainingPaper = [&mgr, &selectedPaperSet](const QString &filePath) {
         for (const auto &pair : mgr.getAllPapers()) {
+            if (selectedPaperSet.count(pair.first)) {
+                continue;
+            }
             const QString otherPath = QString::fromStdString(pair.second.getFilePath()).trimmed();
-            if (!otherPath.isEmpty() && normalizedComparablePath(otherPath) == pdfPath) {
+            if (!otherPath.isEmpty() && normalizedComparablePath(otherPath) == filePath) {
                 return true;
             }
         }
         return false;
     };
 
-    int deletedPdfCount = 0;
-    int failedPdfCount = 0;
-    for (const QString &pdfPath : pdfPathsToDelete) {
-        if (pdfPath.isEmpty() || isPdfStillReferenced(pdfPath) || !QFile::exists(pdfPath)) {
+    auto fileReferencedByRemainingAttachment = [&mgr, &attachmentIdsToDelete](const QString &filePath) {
+        for (const auto &pair : mgr.getAllAttachments()) {
+            if (attachmentIdsToDelete.count(pair.first)) {
+                continue;
+            }
+            const QString otherPath = QString::fromStdString(pair.second.getFilePath()).trimmed();
+            if (!otherPath.isEmpty() && normalizedComparablePath(otherPath) == filePath) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int deletedFileCount = 0;
+    int failedFileCount = 0;
+    for (auto it = filesToDelete.cbegin(); it != filesToDelete.cend(); ++it) {
+        const QString normalizedPath = it.key();
+        const QString filePath = it.value();
+        if (fileReferencedByRemainingPaper(normalizedPath) || fileReferencedByRemainingAttachment(normalizedPath)) {
             continue;
         }
-        if (QFile::remove(pdfPath)) {
-            ++deletedPdfCount;
+        if (!QFile::exists(filePath)) {
+            continue;
+        }
+        if (QFile::remove(filePath)) {
+            ++deletedFileCount;
         } else {
-            ++failedPdfCount;
+            ++failedFileCount;
+        }
+    }
+
+    for (IdType attachmentId : attachmentIdsToDelete) {
+        mgr.removeAttachment(attachmentId);
+    }
+
+    for (IdType paperId : paperIds) {
+        mgr.removePaper(paperId);
+    }
+
+    auto attachmentDirectoryStillUsed = [&mgr](const QString &dirPath) {
+        for (const auto &pair : mgr.getAllAttachments()) {
+            const QString attachmentPath = QString::fromStdString(pair.second.getFilePath()).trimmed();
+            if (!attachmentPath.isEmpty() && pathIsInsideDirectory(attachmentPath, dirPath)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int deletedDirCount = 0;
+    int failedDirCount = 0;
+    for (auto it = attachmentDirsToDelete.cbegin(); it != attachmentDirsToDelete.cend(); ++it) {
+        const QString dirPath = it.value();
+        if (!isDeletableAttachmentDirectory(dirPath) || attachmentDirectoryStillUsed(dirPath)) {
+            continue;
+        }
+        if (QDir(dirPath).removeRecursively()) {
+            ++deletedDirCount;
+        } else {
+            ++failedDirCount;
         }
     }
 
@@ -1255,11 +1571,16 @@ void MainWindow::onDeletePaper()
     rebuildCatalogTree();
     restoreSelectionAfterReload(currentNodeKey());
     refreshPaperTable();
-    QString status = QStringLiteral("已删除 %1 条文献，已删除 %2 个关联 PDF")
+    saveDefaultData();
+
+    QString status = QStringLiteral("已删除文献及其附件：%1 条文献，%2 个文件，%3 个附件文件夹")
         .arg(static_cast<int>(paperIds.size()))
-        .arg(deletedPdfCount);
-    if (failedPdfCount > 0) {
-        status += QStringLiteral("，%1 个 PDF 删除失败").arg(failedPdfCount);
+        .arg(deletedFileCount)
+        .arg(deletedDirCount);
+    if (failedFileCount > 0 || failedDirCount > 0) {
+        status += QStringLiteral("，%1 个文件、%2 个文件夹删除失败")
+            .arg(failedFileCount)
+            .arg(failedDirCount);
     }
     showStatus(status);
 }
