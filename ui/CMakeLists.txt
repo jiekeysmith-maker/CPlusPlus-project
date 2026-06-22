@@ -27,6 +27,8 @@ set(PROJECT_SOURCES
         src/core/SerializationUtils.cpp
         src/core/Author.h
         src/core/Author.cpp
+        src/core/AuthorCatalog.h
+        src/core/AuthorCatalog.cpp
         src/core/Source.h
         src/core/Journal.h
         src/core/Journal.cpp

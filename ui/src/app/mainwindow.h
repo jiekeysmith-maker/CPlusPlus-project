@@ -13,6 +13,7 @@ class QEvent;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QFormLayout;
 class QTreeWidget;
 class QTreeWidgetItem;
 class QTableWidget;
@@ -43,11 +44,15 @@ private slots:
     void onSearchTextChanged(const QString &text);
     void onSearchClicked();
     void onShowAllClicked();
+    void onSelectAllClicked();
     void onAddPaper();
+    void onAddAuthor();
     void onEditPaper();
     void onDeletePaper();
     void onAddCatalog();
     void onDeleteCatalog();
+    void onAddAuthorCatalog();
+    void onDeleteAuthorCatalog();
     void onCatalogContextMenu(const QPoint &pos);
     void onOpenPaperAttachment(int row, int column);
     void onViewPaperDetail();
@@ -55,15 +60,23 @@ private slots:
     void onOpenDetailAttachment();
     void onSave();
     void onLoad();
+    void onImport();
 
 private:
     enum class LibraryNodeType {
-        System,
-        Catalog
+        PaperSystem,
+        PaperCatalog,
+        AuthorSystem,
+        AuthorCatalog
+    };
+
+    enum class MainContentMode {
+        Papers,
+        Authors
     };
 
     struct LibraryNodeInfo {
-        LibraryNodeType type = LibraryNodeType::System;
+        LibraryNodeType type = LibraryNodeType::PaperSystem;
         IdType catalogId = INVALID_ID;
         QString key;
         bool deletable = false;
@@ -76,23 +89,40 @@ private:
     void rebuildCatalogTree();
     void refreshPaperTable();
     void updatePaperTable(const std::vector<Paper> &papers);
+    void updateAuthorTable(const std::vector<Author> &authors);
     void updateDetailPanel(IdType paperId);
+    void updateAuthorDetailPanel(IdType authorId);
     void clearDetailPanel();
     std::vector<Paper> collectCurrentPapers() const;
+    std::vector<Author> collectCurrentAuthors() const;
     std::vector<Paper> filterPapers(const std::vector<Paper> &papers, const QString &keyword) const;
+    std::vector<Author> filterAuthors(const std::vector<Author> &authors, const QString &keyword) const;
     QString paperAuthorsText(const Paper &paper) const;
     QString paperKeywordsText(const Paper &paper) const;
     QString paperCatalogText(const Paper &paper) const;
     QString paperUploadTimeText(const Paper &paper) const;
+    QString authorResearchAreasText(const Author &author) const;
+    QString authorPapersText(IdType authorId) const;
     void ensureUploadTime(Paper &paper) const;
     void addPaperToCurrentCatalog(IdType paperId) const;
+    void addAuthorToCurrentCatalog(IdType authorId) const;
     bool moveSelectedPaperToCatalog(IdType catalogId);
     IdType selectedPaperId() const;
+    IdType selectedAuthorId() const;
+    std::vector<IdType> selectedPaperIds() const;
+    std::vector<IdType> selectedAuthorIds() const;
     void adjustAuthorColumnWidth();
     bool isUserCatalogNode(const QTreeWidgetItem *item) const;
+    bool isUserAuthorCatalogNode(const QTreeWidgetItem *item) const;
     bool isSystemNode(const QTreeWidgetItem *item) const;
     IdType currentCatalogId() const;
+    IdType currentAuthorCatalogId() const;
     QString currentNodeKey() const;
+    bool isAuthorMode() const;
+    void updateContentModeForNode(const QTreeWidgetItem *item);
+    void updateToolbarForMode();
+    void setDetailRowLabel(QWidget *field, const QString &text);
+    void setDetailRowVisible(QWidget *field, bool visible);
     void selectSystemNode(const QString &key);
     void showStatus(const QString &msg);
     void restoreSelectionAfterReload(const QString &key);
@@ -116,19 +146,26 @@ private:
     QLabel *m_detailUploadTimeLabel = nullptr;
     QLabel *m_detailKeywordsLabel = nullptr;
     QLabel *m_detailFilePathLabel = nullptr;
+    QLabel *m_detailHeadingLabel = nullptr;
+    QFormLayout *m_detailForm = nullptr;
     QLineEdit *m_searchEdit = nullptr;
     QString m_defaultDataPath;
     QString m_currentNodeKey;
+    MainContentMode m_contentMode = MainContentMode::Papers;
     IdType m_detailPaperId = INVALID_ID;
+    IdType m_detailAuthorId = INVALID_ID;
     QAction *m_addPaperAction = nullptr;
+    QAction *m_addAuthorAction = nullptr;
     QAction *m_editPaperAction = nullptr;
     QAction *m_deletePaperAction = nullptr;
     QAction *m_saveAction = nullptr;
     QAction *m_loadAction = nullptr;
+    QAction *m_importAction = nullptr;
     QPushButton *m_viewDetailButton = nullptr;
     QPushButton *m_openDetailAttachmentButton = nullptr;
     QPushButton *m_searchButton = nullptr;
     QPushButton *m_showAllButton = nullptr;
+    QPushButton *m_selectAllButton = nullptr;
 };
 
 #endif // MAINWINDOW_H

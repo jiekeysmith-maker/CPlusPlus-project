@@ -41,6 +41,7 @@
 #include <set>
 
 #include "paperdialog.h"
+#include "authordialog.h"
 #include "StoragePaths.h"
 
 namespace {
@@ -49,6 +50,7 @@ constexpr int kRoleCatalogId = Qt::UserRole + 1;
 constexpr int kRoleNodeKey = Qt::UserRole + 2;
 constexpr int kRoleDeletable = Qt::UserRole + 3;
 constexpr int kRolePaperId = Qt::UserRole + 4;
+constexpr int kRoleAuthorId = Qt::UserRole + 5;
 
 QString joinStrings(const QStringList &items, const QString &separator = QStringLiteral("; "))
 {
@@ -73,6 +75,15 @@ bool pathIsInsideDirectory(const QString &filePath, const QString &directoryPath
     dir = dir.toLower();
 #endif
     return file == dir || file.startsWith(dir + QLatin1Char('/'));
+}
+
+QString normalizedComparablePath(const QString &path)
+{
+    QString normalized = normalizedAbsolutePath(QDir::fromNativeSeparators(path));
+#ifdef Q_OS_WIN
+    normalized = normalized.toLower();
+#endif
+    return normalized;
 }
 }
 
@@ -130,7 +141,7 @@ void MainWindow::setupUi()
         QStringLiteral("全文附件")
     });
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_table->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setDragEnabled(true);
     m_table->setDragDropMode(QAbstractItemView::DragOnly);
@@ -188,6 +199,9 @@ void MainWindow::setupMenuBar()
     m_loadAction->setShortcut(QKeySequence::Open);
     connect(m_loadAction, &QAction::triggered, this, &MainWindow::onLoad);
 
+    m_importAction = fileMenu->addAction(QStringLiteral("导入数据(&I)"));
+    connect(m_importAction, &QAction::triggered, this, &MainWindow::onImport);
+
     fileMenu->addSeparator();
 
     QAction *exitAction = fileMenu->addAction(QStringLiteral("退出(&X)"));
@@ -203,6 +217,9 @@ void MainWindow::setupToolbar()
 
     m_addPaperAction = toolbar->addAction(QStringLiteral("上传/新增文献"));
     connect(m_addPaperAction, &QAction::triggered, this, &MainWindow::onAddPaper);
+
+    m_addAuthorAction = toolbar->addAction(QStringLiteral("新增作者"));
+    connect(m_addAuthorAction, &QAction::triggered, this, &MainWindow::onAddAuthor);
 
     m_editPaperAction = toolbar->addAction(QStringLiteral("编辑文献"));
     connect(m_editPaperAction, &QAction::triggered, this, &MainWindow::onEditPaper);
@@ -226,6 +243,10 @@ void MainWindow::setupToolbar()
     m_showAllButton = new QPushButton(QStringLiteral("显示全部"), this);
     toolbar->addWidget(m_showAllButton);
     connect(m_showAllButton, &QPushButton::clicked, this, &MainWindow::onShowAllClicked);
+
+    m_selectAllButton = new QPushButton(QStringLiteral("全选"), this);
+    toolbar->addWidget(m_selectAllButton);
+    connect(m_selectAllButton, &QPushButton::clicked, this, &MainWindow::onSelectAllClicked);
 
     toolbar->addSeparator();
     auto *spacer = new QWidget(this);
@@ -252,22 +273,22 @@ void MainWindow::setupDetailPanel()
     panelLayout->setContentsMargins(14, 14, 14, 14);
     panelLayout->setSpacing(10);
 
-    auto *title = new QLabel(QStringLiteral("文献详情"), m_detailPanel);
-    QFont titleFont = title->font();
+    m_detailHeadingLabel = new QLabel(QStringLiteral("文献详情"), m_detailPanel);
+    QFont titleFont = m_detailHeadingLabel->font();
     titleFont.setBold(true);
     titleFont.setPointSize(titleFont.pointSize() + 2);
-    title->setFont(titleFont);
-    panelLayout->addWidget(title);
+    m_detailHeadingLabel->setFont(titleFont);
+    panelLayout->addWidget(m_detailHeadingLabel);
 
     auto *scrollArea = new QScrollArea(m_detailPanel);
     scrollArea->setWidgetResizable(true);
     scrollArea->setFrameShape(QFrame::NoFrame);
 
     auto *content = new QWidget(scrollArea);
-    auto *form = new QFormLayout(content);
-    form->setContentsMargins(0, 0, 0, 0);
-    form->setSpacing(10);
-    form->setLabelAlignment(Qt::AlignTop | Qt::AlignRight);
+    m_detailForm = new QFormLayout(content);
+    m_detailForm->setContentsMargins(0, 0, 0, 0);
+    m_detailForm->setSpacing(10);
+    m_detailForm->setLabelAlignment(Qt::AlignTop | Qt::AlignRight);
 
     auto makeValueLabel = [content]() {
         auto *label = new QLabel(QStringLiteral("未填写"), content);
@@ -285,19 +306,19 @@ void MainWindow::setupDetailPanel()
     m_detailKeywordsLabel = makeValueLabel();
     m_detailFilePathLabel = makeValueLabel();
 
-    form->addRow(QStringLiteral("完整标题:"), m_detailTitleLabel);
-    form->addRow(QStringLiteral("作者名字:"), m_detailAuthorsLabel);
-    form->addRow(QStringLiteral("出版物:"), m_detailSourceLabel);
-    form->addRow(QStringLiteral("发表时间:"), m_detailPublishDateLabel);
-    form->addRow(QStringLiteral("上传时间:"), m_detailUploadTimeLabel);
-    form->addRow(QStringLiteral("关键词:"), m_detailKeywordsLabel);
-    form->addRow(QStringLiteral("附件链接:"), m_detailFilePathLabel);
+    m_detailForm->addRow(QStringLiteral("完整标题:"), m_detailTitleLabel);
+    m_detailForm->addRow(QStringLiteral("作者名字:"), m_detailAuthorsLabel);
+    m_detailForm->addRow(QStringLiteral("出版物:"), m_detailSourceLabel);
+    m_detailForm->addRow(QStringLiteral("发表时间:"), m_detailPublishDateLabel);
+    m_detailForm->addRow(QStringLiteral("上传时间:"), m_detailUploadTimeLabel);
+    m_detailForm->addRow(QStringLiteral("关键词:"), m_detailKeywordsLabel);
+    m_detailForm->addRow(QStringLiteral("附件链接:"), m_detailFilePathLabel);
 
     m_openDetailAttachmentButton = new QPushButton(QStringLiteral("打开附件"), content);
     m_openDetailAttachmentButton->setEnabled(false);
     connect(m_openDetailAttachmentButton, &QPushButton::clicked,
             this, &MainWindow::onOpenDetailAttachment);
-    form->addRow(QString(), m_openDetailAttachmentButton);
+    m_detailForm->addRow(QString(), m_openDetailAttachmentButton);
 
     scrollArea->setWidget(content);
     panelLayout->addWidget(scrollArea, 1);
@@ -327,22 +348,22 @@ void MainWindow::rebuildCatalogTree()
     m_sidebar->clear();
 
     auto *myLibrary = new QTreeWidgetItem(m_sidebar, {QStringLiteral("我的文库")});
-    myLibrary->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::System));
+    myLibrary->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::PaperSystem));
     myLibrary->setData(0, kRoleNodeKey, QStringLiteral("library"));
     myLibrary->setData(0, kRoleDeletable, false);
 
     auto *allPapers = new QTreeWidgetItem(myLibrary, {QStringLiteral("全部文献")});
-    allPapers->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::System));
+    allPapers->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::PaperSystem));
     allPapers->setData(0, kRoleNodeKey, QStringLiteral("all"));
     allPapers->setData(0, kRoleDeletable, false);
 
     auto *recent = new QTreeWidgetItem(myLibrary, {QStringLiteral("最近添加")});
-    recent->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::System));
+    recent->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::PaperSystem));
     recent->setData(0, kRoleNodeKey, QStringLiteral("recent"));
     recent->setData(0, kRoleDeletable, false);
 
     auto *uncategorized = new QTreeWidgetItem(myLibrary, {QStringLiteral("未分类")});
-    uncategorized->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::System));
+    uncategorized->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::PaperSystem));
     uncategorized->setData(0, kRoleNodeKey, QStringLiteral("uncategorized"));
     uncategorized->setData(0, kRoleDeletable, false);
 
@@ -355,7 +376,7 @@ void MainWindow::rebuildCatalogTree()
             const Catalog &catalog = pair.second;
             if (catalog.getParentId() == parentCatalogId) {
                 auto *item = new QTreeWidgetItem(parentItem, {QString::fromStdString(catalog.getName())});
-                item->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::Catalog));
+                item->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::PaperCatalog));
                 item->setData(0, kRoleCatalogId, static_cast<int>(catalog.getId()));
                 item->setData(0, kRoleNodeKey, QStringLiteral("catalog_%1").arg(catalog.getId()));
                 item->setData(0, kRoleDeletable, true);
@@ -367,9 +388,33 @@ void MainWindow::rebuildCatalogTree()
 
     buildChildren(myLibrary, INVALID_ID);
 
+    auto *authorLibrary = new QTreeWidgetItem(m_sidebar, {QStringLiteral("作者库")});
+    authorLibrary->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::AuthorSystem));
+    authorLibrary->setData(0, kRoleNodeKey, QStringLiteral("authors"));
+    authorLibrary->setData(0, kRoleDeletable, false);
+
+    const auto &authorCatalogs = LibraryManager::getInstance().getAllAuthorCatalogs();
+    std::function<void(QTreeWidgetItem*, IdType)> buildAuthorChildren = [&](QTreeWidgetItem *parentItem, IdType parentCatalogId) {
+        for (const auto &pair : authorCatalogs) {
+            const AuthorCatalog &catalog = pair.second;
+            if (catalog.getParentId() == parentCatalogId) {
+                auto *item = new QTreeWidgetItem(parentItem, {QString::fromStdString(catalog.getName())});
+                item->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::AuthorCatalog));
+                item->setData(0, kRoleCatalogId, static_cast<int>(catalog.getId()));
+                item->setData(0, kRoleNodeKey, QStringLiteral("author_catalog_%1").arg(catalog.getId()));
+                item->setData(0, kRoleDeletable, true);
+                buildAuthorChildren(item, catalog.getId());
+            }
+        }
+    };
+
+    buildAuthorChildren(authorLibrary, INVALID_ID);
+
     myLibrary->setExpanded(true);
+    authorLibrary->setExpanded(true);
     recent->setExpanded(true);
     m_sidebar->expandItem(myLibrary);
+    m_sidebar->expandItem(authorLibrary);
 
     m_sidebar->blockSignals(false);
     QTreeWidgetItem *target = findNodeByKey(previousKey);
@@ -412,13 +457,21 @@ QString MainWindow::currentNodeKey() const
 bool MainWindow::isSystemNode(const QTreeWidgetItem *item) const
 {
     if (!item) return false;
-    return item->data(0, kRoleNodeType).toInt() == static_cast<int>(LibraryNodeType::System);
+    const int type = item->data(0, kRoleNodeType).toInt();
+    return type == static_cast<int>(LibraryNodeType::PaperSystem)
+        || type == static_cast<int>(LibraryNodeType::AuthorSystem);
 }
 
 bool MainWindow::isUserCatalogNode(const QTreeWidgetItem *item) const
 {
     if (!item) return false;
-    return item->data(0, kRoleNodeType).toInt() == static_cast<int>(LibraryNodeType::Catalog);
+    return item->data(0, kRoleNodeType).toInt() == static_cast<int>(LibraryNodeType::PaperCatalog);
+}
+
+bool MainWindow::isUserAuthorCatalogNode(const QTreeWidgetItem *item) const
+{
+    if (!item) return false;
+    return item->data(0, kRoleNodeType).toInt() == static_cast<int>(LibraryNodeType::AuthorCatalog);
 }
 
 IdType MainWindow::currentCatalogId() const
@@ -427,6 +480,51 @@ IdType MainWindow::currentCatalogId() const
         return static_cast<IdType>(item->data(0, kRoleCatalogId).toInt());
     }
     return INVALID_ID;
+}
+
+IdType MainWindow::currentAuthorCatalogId() const
+{
+    if (auto *item = m_sidebar->currentItem(); item && isUserAuthorCatalogNode(item)) {
+        return static_cast<IdType>(item->data(0, kRoleCatalogId).toInt());
+    }
+    return INVALID_ID;
+}
+
+bool MainWindow::isAuthorMode() const
+{
+    return m_contentMode == MainContentMode::Authors;
+}
+
+void MainWindow::updateContentModeForNode(const QTreeWidgetItem *item)
+{
+    if (!item) {
+        m_contentMode = MainContentMode::Papers;
+        return;
+    }
+
+    const int type = item->data(0, kRoleNodeType).toInt();
+    if (type == static_cast<int>(LibraryNodeType::AuthorSystem)
+        || type == static_cast<int>(LibraryNodeType::AuthorCatalog)) {
+        m_contentMode = MainContentMode::Authors;
+    } else {
+        m_contentMode = MainContentMode::Papers;
+    }
+}
+
+void MainWindow::updateToolbarForMode()
+{
+    const bool authors = isAuthorMode();
+    if (m_editPaperAction) {
+        m_editPaperAction->setText(authors ? QStringLiteral("编辑作者") : QStringLiteral("编辑文献"));
+    }
+    if (m_deletePaperAction) {
+        m_deletePaperAction->setText(authors ? QStringLiteral("删除作者") : QStringLiteral("删除文献"));
+    }
+    if (m_searchEdit) {
+        m_searchEdit->setPlaceholderText(authors
+            ? QStringLiteral("搜索姓名、性别、单位、Email、研究领域")
+            : QStringLiteral("搜索标题、关键词、作者"));
+    }
 }
 
 void MainWindow::selectSystemNode(const QString &key)
@@ -491,6 +589,22 @@ std::vector<Paper> MainWindow::collectCurrentPapers() const
     return papers;
 }
 
+std::vector<Author> MainWindow::collectCurrentAuthors() const
+{
+    auto &mgr = LibraryManager::getInstance();
+    if (auto *item = m_sidebar->currentItem()) {
+        if (isUserAuthorCatalogNode(item)) {
+            return mgr.getAuthorsInCatalog(currentAuthorCatalogId());
+        }
+    }
+
+    std::vector<Author> authors;
+    for (const auto &pair : mgr.getAllAuthors()) {
+        authors.push_back(pair.second);
+    }
+    return authors;
+}
+
 QString MainWindow::paperAuthorsText(const Paper &paper) const
 {
     auto &mgr = LibraryManager::getInstance();
@@ -508,6 +622,37 @@ QString MainWindow::paperKeywordsText(const Paper &paper) const
         kws << QString::fromStdString(kw);
     }
     return joinStrings(kws, QStringLiteral(", "));
+}
+
+QString MainWindow::authorResearchAreasText(const Author &author) const
+{
+    QStringList areas;
+    for (const auto &area : author.getResearchAreas()) {
+        areas << QString::fromStdString(area);
+    }
+    return joinStrings(areas);
+}
+
+QString MainWindow::authorPapersText(IdType authorId) const
+{
+    QStringList lines;
+    for (const auto &pair : LibraryManager::getInstance().getAllPapers()) {
+        const Paper &paper = pair.second;
+        const auto &authorIds = paper.getAuthorIds();
+        if (std::find(authorIds.begin(), authorIds.end(), authorId) == authorIds.end()) {
+            continue;
+        }
+
+        const QString title = QString::fromStdString(paper.getTitle()).trimmed().isEmpty()
+            ? QStringLiteral("未命名文献")
+            : QString::fromStdString(paper.getTitle());
+        const QString publishDate = QString::fromStdString(paper.getPublishDate()).trimmed().isEmpty()
+            ? QStringLiteral("发表时间未填写")
+            : QString::fromStdString(paper.getPublishDate());
+        lines << QStringLiteral("- %1（%2）").arg(title, publishDate);
+    }
+
+    return lines.isEmpty() ? QStringLiteral("暂无关联文献") : lines.join(QLatin1Char('\n'));
 }
 
 QString MainWindow::paperCatalogText(const Paper &paper) const
@@ -559,8 +704,53 @@ std::vector<Paper> MainWindow::filterPapers(const std::vector<Paper> &papers, co
     return filtered;
 }
 
+std::vector<Author> MainWindow::filterAuthors(const std::vector<Author> &authors, const QString &keyword) const
+{
+    const QString trimmed = keyword.trimmed();
+    if (trimmed.isEmpty()) {
+        return authors;
+    }
+
+    std::vector<Author> filtered;
+    for (const Author &author : authors) {
+        const QString name = QString::fromStdString(author.getName());
+        const QString gender = QString::fromStdString(author.getGender());
+        const QString affiliation = QString::fromStdString(author.getAffiliation());
+        const QString email = QString::fromStdString(author.getEmail());
+        const QString areas = authorResearchAreasText(author);
+        if (name.contains(trimmed, Qt::CaseInsensitive) ||
+            gender.contains(trimmed, Qt::CaseInsensitive) ||
+            affiliation.contains(trimmed, Qt::CaseInsensitive) ||
+            email.contains(trimmed, Qt::CaseInsensitive) ||
+            areas.contains(trimmed, Qt::CaseInsensitive)) {
+            filtered.push_back(author);
+        }
+    }
+    return filtered;
+}
+
 void MainWindow::updatePaperTable(const std::vector<Paper> &papers)
 {
+    m_table->setRowCount(0);
+    m_table->clear();
+    m_table->setColumnCount(6);
+    m_table->setHorizontalHeaderLabels({
+        QStringLiteral("标题"),
+        QStringLiteral("关键词"),
+        QStringLiteral("发表时间"),
+        QStringLiteral("作者"),
+        QStringLiteral("上传时间"),
+        QStringLiteral("全文附件")
+    });
+    m_table->setDragEnabled(true);
+    m_table->setDragDropMode(QAbstractItemView::DragOnly);
+    m_table->horizontalHeader()->setStretchLastSection(false);
+    m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Interactive);
+    m_table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
     m_table->setRowCount(static_cast<int>(papers.size()));
     for (int row = 0; row < static_cast<int>(papers.size()); ++row) {
         const Paper &paper = papers[static_cast<size_t>(row)];
@@ -591,10 +781,72 @@ void MainWindow::updatePaperTable(const std::vector<Paper> &papers)
     onPaperSelectionChanged();
 }
 
+void MainWindow::updateAuthorTable(const std::vector<Author> &authors)
+{
+    m_table->setRowCount(0);
+    m_table->clear();
+    m_table->setColumnCount(5);
+    m_table->setHorizontalHeaderLabels({
+        QStringLiteral("姓名"),
+        QStringLiteral("性别"),
+        QStringLiteral("单位"),
+        QStringLiteral("Email"),
+        QStringLiteral("研究领域")
+    });
+    m_table->setDragEnabled(false);
+    m_table->setDragDropMode(QAbstractItemView::NoDragDrop);
+    m_table->horizontalHeader()->setStretchLastSection(false);
+    m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
+    m_table->setRowCount(static_cast<int>(authors.size()));
+
+    for (int row = 0; row < static_cast<int>(authors.size()); ++row) {
+        const Author &author = authors[static_cast<size_t>(row)];
+        auto *nameItem = new QTableWidgetItem(QString::fromStdString(author.getName()));
+        nameItem->setData(kRoleAuthorId, static_cast<qint64>(author.getId()));
+        m_table->setItem(row, 0, nameItem);
+        m_table->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(author.getGender())));
+        m_table->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(author.getAffiliation())));
+        m_table->setItem(row, 3, new QTableWidgetItem(QString::fromStdString(author.getEmail())));
+        m_table->setItem(row, 4, new QTableWidgetItem(authorResearchAreasText(author)));
+    }
+
+    m_table->resizeRowsToContents();
+    onPaperSelectionChanged();
+}
+
 void MainWindow::refreshPaperTable()
 {
     const QString keyword = m_searchEdit ? m_searchEdit->text() : QString();
-    updatePaperTable(filterPapers(collectCurrentPapers(), keyword));
+    if (isAuthorMode()) {
+        updateAuthorTable(filterAuthors(collectCurrentAuthors(), keyword));
+    } else {
+        updatePaperTable(filterPapers(collectCurrentPapers(), keyword));
+    }
+}
+
+void MainWindow::setDetailRowLabel(QWidget *field, const QString &text)
+{
+    if (!m_detailForm || !field) {
+        return;
+    }
+    if (auto *label = qobject_cast<QLabel *>(m_detailForm->labelForField(field))) {
+        label->setText(text);
+    }
+}
+
+void MainWindow::setDetailRowVisible(QWidget *field, bool visible)
+{
+    if (!m_detailForm || !field) {
+        return;
+    }
+    if (auto *label = m_detailForm->labelForField(field)) {
+        label->setVisible(visible);
+    }
+    field->setVisible(visible);
 }
 
 void MainWindow::updateDetailPanel(IdType paperId)
@@ -621,6 +873,25 @@ void MainWindow::updateDetailPanel(IdType paperId)
     const QString nativeFilePath = QDir::toNativeSeparators(filePath);
 
     m_detailPaperId = paperId;
+    m_detailAuthorId = INVALID_ID;
+    if (m_detailHeadingLabel) {
+        m_detailHeadingLabel->setText(QStringLiteral("文献详情"));
+    }
+    setDetailRowLabel(m_detailTitleLabel, QStringLiteral("完整标题:"));
+    setDetailRowLabel(m_detailAuthorsLabel, QStringLiteral("作者名字:"));
+    setDetailRowLabel(m_detailSourceLabel, QStringLiteral("出版物:"));
+    setDetailRowLabel(m_detailPublishDateLabel, QStringLiteral("发表时间:"));
+    setDetailRowLabel(m_detailUploadTimeLabel, QStringLiteral("上传时间:"));
+    setDetailRowLabel(m_detailKeywordsLabel, QStringLiteral("关键词:"));
+    setDetailRowLabel(m_detailFilePathLabel, QStringLiteral("附件链接:"));
+    setDetailRowVisible(m_detailTitleLabel, true);
+    setDetailRowVisible(m_detailAuthorsLabel, true);
+    setDetailRowVisible(m_detailSourceLabel, true);
+    setDetailRowVisible(m_detailPublishDateLabel, true);
+    setDetailRowVisible(m_detailUploadTimeLabel, true);
+    setDetailRowVisible(m_detailKeywordsLabel, true);
+    setDetailRowVisible(m_detailFilePathLabel, true);
+    setDetailRowVisible(m_openDetailAttachmentButton, true);
     m_detailTitleLabel->setText(valueOrDefault(QString::fromStdString(paper->getTitle())));
     m_detailAuthorsLabel->setText(valueOrDefault(authors));
     m_detailSourceLabel->setText(source);
@@ -634,9 +905,56 @@ void MainWindow::updateDetailPanel(IdType paperId)
     m_detailPanel->show();
 }
 
+void MainWindow::updateAuthorDetailPanel(IdType authorId)
+{
+    Author *author = LibraryManager::getInstance().findAuthor(authorId);
+    if (!author) {
+        clearDetailPanel();
+        return;
+    }
+
+    auto valueOrDefault = [](const QString &value) {
+        const QString trimmed = value.trimmed();
+        return trimmed.isEmpty() ? QStringLiteral("未填写") : trimmed;
+    };
+
+    m_detailPaperId = INVALID_ID;
+    m_detailAuthorId = authorId;
+    if (m_detailHeadingLabel) {
+        m_detailHeadingLabel->setText(QStringLiteral("作者详情"));
+    }
+    setDetailRowLabel(m_detailTitleLabel, QStringLiteral("姓名:"));
+    setDetailRowLabel(m_detailAuthorsLabel, QStringLiteral("性别:"));
+    setDetailRowLabel(m_detailSourceLabel, QStringLiteral("单位:"));
+    setDetailRowLabel(m_detailPublishDateLabel, QStringLiteral("Email:"));
+    setDetailRowLabel(m_detailUploadTimeLabel, QStringLiteral("研究领域:"));
+    setDetailRowLabel(m_detailKeywordsLabel, QStringLiteral("该作者的文献:"));
+    setDetailRowVisible(m_detailTitleLabel, true);
+    setDetailRowVisible(m_detailAuthorsLabel, true);
+    setDetailRowVisible(m_detailSourceLabel, true);
+    setDetailRowVisible(m_detailPublishDateLabel, true);
+    setDetailRowVisible(m_detailUploadTimeLabel, true);
+    setDetailRowVisible(m_detailKeywordsLabel, true);
+    setDetailRowVisible(m_detailFilePathLabel, false);
+    setDetailRowVisible(m_openDetailAttachmentButton, false);
+
+    m_detailTitleLabel->setText(valueOrDefault(QString::fromStdString(author->getName())));
+    m_detailAuthorsLabel->setText(valueOrDefault(QString::fromStdString(author->getGender())));
+    m_detailSourceLabel->setText(valueOrDefault(QString::fromStdString(author->getAffiliation())));
+    m_detailPublishDateLabel->setText(valueOrDefault(QString::fromStdString(author->getEmail())));
+    m_detailUploadTimeLabel->setText(valueOrDefault(authorResearchAreasText(*author)));
+    m_detailKeywordsLabel->setText(authorPapersText(authorId));
+    m_detailFilePathLabel->clear();
+    m_detailFilePathLabel->setToolTip(QString());
+    m_openDetailAttachmentButton->setEnabled(false);
+
+    m_detailPanel->show();
+}
+
 void MainWindow::clearDetailPanel()
 {
     m_detailPaperId = INVALID_ID;
+    m_detailAuthorId = INVALID_ID;
     if (m_detailTitleLabel) {
         m_detailTitleLabel->setText(QStringLiteral("未填写"));
         m_detailAuthorsLabel->setText(QStringLiteral("未填写"));
@@ -657,6 +975,20 @@ void MainWindow::clearDetailPanel()
 
 void MainWindow::onViewPaperDetail()
 {
+    if (isAuthorMode()) {
+        const IdType authorId = selectedAuthorId();
+        if (authorId == INVALID_ID) {
+            clearDetailPanel();
+            return;
+        }
+        if (m_detailPanel && m_detailPanel->isVisible() && m_detailAuthorId == authorId) {
+            m_detailPanel->hide();
+            return;
+        }
+        updateAuthorDetailPanel(authorId);
+        return;
+    }
+
     const IdType paperId = selectedPaperId();
     if (paperId == INVALID_ID) {
         clearDetailPanel();
@@ -671,7 +1003,9 @@ void MainWindow::onViewPaperDetail()
 
 void MainWindow::onPaperSelectionChanged()
 {
-    const bool hasPaper = selectedPaperId() != INVALID_ID;
+    const bool hasPaper = isAuthorMode()
+        ? selectedAuthorId() != INVALID_ID
+        : selectedPaperId() != INVALID_ID;
     if (m_viewDetailButton) {
         m_viewDetailButton->setEnabled(hasPaper);
     }
@@ -701,6 +1035,12 @@ void MainWindow::onSidebarItemChanged(QTreeWidgetItem *current, QTreeWidgetItem 
     Q_UNUSED(previous)
     if (!current) return;
     m_currentNodeKey = current->data(0, kRoleNodeKey).toString();
+    const MainContentMode previousMode = m_contentMode;
+    updateContentModeForNode(current);
+    updateToolbarForMode();
+    if (previousMode != m_contentMode) {
+        clearDetailPanel();
+    }
     refreshPaperTable();
 }
 
@@ -718,8 +1058,19 @@ void MainWindow::onSearchClicked()
 void MainWindow::onShowAllClicked()
 {
     m_searchEdit->clear();
-    selectSystemNode(QStringLiteral("all"));
+    if (!isAuthorMode()) {
+        selectSystemNode(QStringLiteral("all"));
+    }
     refreshPaperTable();
+}
+
+void MainWindow::onSelectAllClicked()
+{
+    if (!m_table || m_table->rowCount() == 0) {
+        return;
+    }
+    m_table->selectAll();
+    onPaperSelectionChanged();
 }
 
 void MainWindow::onAddPaper()
@@ -739,8 +1090,53 @@ void MainWindow::onAddPaper()
     showStatus(QStringLiteral("已新增文献"));
 }
 
+void MainWindow::onAddAuthor()
+{
+    AuthorDialog dialog(this);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    Author author = dialog.getEntity();
+    const IdType authorId = LibraryManager::getInstance().addAuthor(author);
+    addAuthorToCurrentCatalog(authorId);
+    const QString key = currentNodeKey();
+    rebuildCatalogTree();
+    restoreSelectionAfterReload(key);
+    refreshPaperTable();
+    showStatus(QStringLiteral("已新增作者"));
+}
+
 void MainWindow::onEditPaper()
 {
+    if (isAuthorMode()) {
+        const IdType authorId = selectedAuthorId();
+        if (authorId == INVALID_ID) {
+            QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择一位作者。"));
+            return;
+        }
+        Author *author = LibraryManager::getInstance().findAuthor(authorId);
+        if (!author) {
+            return;
+        }
+
+        AuthorDialog dialog(this);
+        dialog.setEntity(*author);
+        if (dialog.exec() != QDialog::Accepted) {
+            return;
+        }
+
+        Author updated = dialog.getEntity();
+        updated.setId(authorId);
+        LibraryManager::getInstance().updateAuthor(authorId, updated);
+        refreshPaperTable();
+        if (m_detailAuthorId == authorId && m_detailPanel && m_detailPanel->isVisible()) {
+            updateAuthorDetailPanel(authorId);
+        }
+        showStatus(QStringLiteral("已更新作者"));
+        return;
+    }
+
     const IdType paperId = selectedPaperId();
     if (paperId == INVALID_ID) {
         QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择一条文献。"));
@@ -773,27 +1169,99 @@ void MainWindow::onEditPaper()
 
 void MainWindow::onDeletePaper()
 {
-    const IdType paperId = selectedPaperId();
-    if (paperId == INVALID_ID) {
-        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择一条文献。"));
+    if (isAuthorMode()) {
+        const std::vector<IdType> authorIds = selectedAuthorIds();
+        if (authorIds.empty()) {
+            QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择要删除的作者。"));
+            return;
+        }
+        auto reply = QMessageBox::question(
+            this,
+            QStringLiteral("删除作者"),
+            QStringLiteral("确定删除选中的 %1 位作者吗？作者会从关联文献和作者目录中移除。")
+                .arg(static_cast<int>(authorIds.size())));
+        if (reply != QMessageBox::Yes) {
+            return;
+        }
+
+        const bool detailDeleted = std::find(authorIds.begin(), authorIds.end(), m_detailAuthorId) != authorIds.end();
+        for (IdType authorId : authorIds) {
+            LibraryManager::getInstance().removeAuthor(authorId);
+        }
+        if (detailDeleted) {
+            clearDetailPanel();
+        }
+        refreshPaperTable();
+        showStatus(QStringLiteral("已删除 %1 位作者").arg(static_cast<int>(authorIds.size())));
+        return;
+    }
+
+    const std::vector<IdType> paperIds = selectedPaperIds();
+    if (paperIds.empty()) {
+        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先选择要删除的文献。"));
         return;
     }
     auto reply = QMessageBox::question(
         this,
         QStringLiteral("删除文献"),
-        QStringLiteral("确定删除该文献吗？系统只删除记录，不会删除本地 PDF 文件。"));
+        QStringLiteral("确定删除选中的 %1 条文献吗？系统会同时删除不再被其他文献引用的关联 PDF 文件。")
+            .arg(static_cast<int>(paperIds.size())));
     if (reply != QMessageBox::Yes) {
         return;
     }
 
-    LibraryManager::getInstance().removePaper(paperId);
-    if (m_detailPaperId == paperId) {
+    auto &mgr = LibraryManager::getInstance();
+    std::set<QString> pdfPathsToDelete;
+    for (IdType paperId : paperIds) {
+        if (Paper *paper = mgr.findPaper(paperId)) {
+            const QString filePath = QString::fromStdString(paper->getFilePath()).trimmed();
+            if (!filePath.isEmpty()) {
+                pdfPathsToDelete.insert(normalizedComparablePath(filePath));
+            }
+        }
+    }
+
+    const bool detailDeleted = std::find(paperIds.begin(), paperIds.end(), m_detailPaperId) != paperIds.end();
+    for (IdType paperId : paperIds) {
+        mgr.removePaper(paperId);
+    }
+
+    auto isPdfStillReferenced = [&mgr](const QString &pdfPath) {
+        for (const auto &pair : mgr.getAllPapers()) {
+            const QString otherPath = QString::fromStdString(pair.second.getFilePath()).trimmed();
+            if (!otherPath.isEmpty() && normalizedComparablePath(otherPath) == pdfPath) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    int deletedPdfCount = 0;
+    int failedPdfCount = 0;
+    for (const QString &pdfPath : pdfPathsToDelete) {
+        if (pdfPath.isEmpty() || isPdfStillReferenced(pdfPath) || !QFile::exists(pdfPath)) {
+            continue;
+        }
+        if (QFile::remove(pdfPath)) {
+            ++deletedPdfCount;
+        } else {
+            ++failedPdfCount;
+        }
+    }
+
+    if (detailDeleted) {
         clearDetailPanel();
     }
     rebuildCatalogTree();
     restoreSelectionAfterReload(currentNodeKey());
     refreshPaperTable();
-    showStatus(QStringLiteral("已删除文献"));
+    QString status = QStringLiteral("已删除 %1 条文献，已删除 %2 个关联 PDF")
+        .arg(static_cast<int>(paperIds.size()))
+        .arg(deletedPdfCount);
+    if (failedPdfCount > 0) {
+        status += QStringLiteral("，%1 个 PDF 删除失败").arg(failedPdfCount);
+    }
+    showStatus(status);
 }
 
 void MainWindow::onAddCatalog()
@@ -849,25 +1317,88 @@ void MainWindow::onDeleteCatalog()
     showStatus(QStringLiteral("已删除目录"));
 }
 
+void MainWindow::onAddAuthorCatalog()
+{
+    bool ok = false;
+    const QString name = QInputDialog::getText(
+        this,
+        QStringLiteral("添加作者目录"),
+        QStringLiteral("目录名称:"),
+        QLineEdit::Normal,
+        QString(),
+        &ok).trimmed();
+    if (!ok || name.isEmpty()) {
+        return;
+    }
+
+    AuthorCatalog catalog;
+    catalog.setName(name.toStdString());
+    if (auto *item = m_sidebar->currentItem(); item && isUserAuthorCatalogNode(item)) {
+        catalog.setParentId(currentAuthorCatalogId());
+    } else {
+        catalog.setParentId(INVALID_ID);
+    }
+
+    const QString key = currentNodeKey();
+    LibraryManager::getInstance().addAuthorCatalog(catalog);
+    rebuildCatalogTree();
+    restoreSelectionAfterReload(key);
+    refreshPaperTable();
+    showStatus(QStringLiteral("已添加作者目录"));
+}
+
+void MainWindow::onDeleteAuthorCatalog()
+{
+    auto *item = m_sidebar->currentItem();
+    if (!isUserAuthorCatalogNode(item)) {
+        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("只能删除作者库下的用户自定义目录。"));
+        return;
+    }
+
+    const IdType catalogId = currentAuthorCatalogId();
+    auto reply = QMessageBox::question(
+        this,
+        QStringLiteral("删除作者目录"),
+        QStringLiteral("确定删除当前作者目录吗？目录内作者不会被删除。"));
+    if (reply != QMessageBox::Yes) {
+        return;
+    }
+
+    LibraryManager::getInstance().removeAuthorCatalog(catalogId);
+    rebuildCatalogTree();
+    selectSystemNode(QStringLiteral("authors"));
+    refreshPaperTable();
+    showStatus(QStringLiteral("已删除作者目录"));
+}
+
 void MainWindow::onCatalogContextMenu(const QPoint &pos)
 {
     QTreeWidgetItem *item = m_sidebar->itemAt(pos);
     QMenu menu(m_sidebar);
 
     if (item && isUserCatalogNode(item)) {
-        // User catalog node: add child / delete
         m_sidebar->setCurrentItem(item);
         QAction *actAddChild = menu.addAction(QStringLiteral("添加子目录"));
         QAction *actDelete = menu.addAction(QStringLiteral("删除目录"));
 
         connect(actAddChild, &QAction::triggered, this, &MainWindow::onAddCatalog);
         connect(actDelete, &QAction::triggered, this, &MainWindow::onDeleteCatalog);
+    } else if (item && isUserAuthorCatalogNode(item)) {
+        m_sidebar->setCurrentItem(item);
+        QAction *actAddChild = menu.addAction(QStringLiteral("添加子目录"));
+        QAction *actDelete = menu.addAction(QStringLiteral("删除目录"));
+
+        connect(actAddChild, &QAction::triggered, this, &MainWindow::onAddAuthorCatalog);
+        connect(actDelete, &QAction::triggered, this, &MainWindow::onDeleteAuthorCatalog);
     } else if (item) {
         const QString key = item->data(0, kRoleNodeKey).toString();
         if (key == QStringLiteral("library")) {
-            // Only "我的文库" root — not "全部文献"/"最近添加"/"未分类"
             QAction *actAdd = menu.addAction(QStringLiteral("添加目录"));
             connect(actAdd, &QAction::triggered, this, &MainWindow::onAddCatalog);
+        } else if (key == QStringLiteral("authors")) {
+            m_sidebar->setCurrentItem(item);
+            QAction *actAdd = menu.addAction(QStringLiteral("添加作者目录"));
+            connect(actAdd, &QAction::triggered, this, &MainWindow::onAddAuthorCatalog);
         } else {
             return;
         }
@@ -909,8 +1440,18 @@ void MainWindow::addPaperToCurrentCatalog(IdType paperId) const
     }
 }
 
+void MainWindow::addAuthorToCurrentCatalog(IdType authorId) const
+{
+    if (auto *item = m_sidebar->currentItem(); item && isUserAuthorCatalogNode(item)) {
+        LibraryManager::getInstance().addAuthorToCatalog(authorId, currentAuthorCatalogId());
+    }
+}
+
 IdType MainWindow::selectedPaperId() const
 {
+    if (isAuthorMode()) {
+        return INVALID_ID;
+    }
     if (!m_table) {
         return INVALID_ID;
     }
@@ -923,6 +1464,80 @@ IdType MainWindow::selectedPaperId() const
         return INVALID_ID;
     }
     return static_cast<IdType>(titleItem->data(kRolePaperId).toLongLong());
+}
+
+IdType MainWindow::selectedAuthorId() const
+{
+    if (!isAuthorMode() || !m_table) {
+        return INVALID_ID;
+    }
+    const int row = m_table->currentRow();
+    if (row < 0) {
+        return INVALID_ID;
+    }
+    QTableWidgetItem *nameItem = m_table->item(row, 0);
+    if (!nameItem) {
+        return INVALID_ID;
+    }
+    return static_cast<IdType>(nameItem->data(kRoleAuthorId).toLongLong());
+}
+
+std::vector<IdType> MainWindow::selectedPaperIds() const
+{
+    std::vector<IdType> ids;
+    if (isAuthorMode() || !m_table) {
+        return ids;
+    }
+
+    std::set<IdType> seen;
+    const auto rows = m_table->selectionModel()
+        ? m_table->selectionModel()->selectedRows(0)
+        : QModelIndexList();
+    for (const QModelIndex &index : rows) {
+        if (QTableWidgetItem *item = m_table->item(index.row(), 0)) {
+            const IdType id = static_cast<IdType>(item->data(kRolePaperId).toLongLong());
+            if (id != INVALID_ID && seen.insert(id).second) {
+                ids.push_back(id);
+            }
+        }
+    }
+
+    if (ids.empty()) {
+        const IdType id = selectedPaperId();
+        if (id != INVALID_ID) {
+            ids.push_back(id);
+        }
+    }
+    return ids;
+}
+
+std::vector<IdType> MainWindow::selectedAuthorIds() const
+{
+    std::vector<IdType> ids;
+    if (!isAuthorMode() || !m_table) {
+        return ids;
+    }
+
+    std::set<IdType> seen;
+    const auto rows = m_table->selectionModel()
+        ? m_table->selectionModel()->selectedRows(0)
+        : QModelIndexList();
+    for (const QModelIndex &index : rows) {
+        if (QTableWidgetItem *item = m_table->item(index.row(), 0)) {
+            const IdType id = static_cast<IdType>(item->data(kRoleAuthorId).toLongLong());
+            if (id != INVALID_ID && seen.insert(id).second) {
+                ids.push_back(id);
+            }
+        }
+    }
+
+    if (ids.empty()) {
+        const IdType id = selectedAuthorId();
+        if (id != INVALID_ID) {
+            ids.push_back(id);
+        }
+    }
+    return ids;
 }
 
 bool MainWindow::moveSelectedPaperToCatalog(IdType catalogId)
@@ -1050,9 +1665,17 @@ void MainWindow::onSave()
 void MainWindow::onLoad()
 {
     QString path = QFileDialog::getOpenFileName(this,
-        QStringLiteral("加载数据"), QString(),
+        QStringLiteral("加载数据（替换当前库）"), QString(),
         QStringLiteral("数据文件 (*.txt);;所有文件 (*)"));
     if (path.isEmpty()) return;
+
+    auto reply = QMessageBox::question(
+        this,
+        QStringLiteral("加载数据"),
+        QStringLiteral("加载会清空当前库，并用所选文件替换当前数据。\n\n如果只是想把外部数据加进来，请使用“文件 > 导入数据”。\n\n确定继续加载吗？"));
+    if (reply != QMessageBox::Yes) {
+        return;
+    }
 
     if (LibraryManager::getInstance().loadFromFile(path.toStdString())) {
         clearDetailPanel();
@@ -1064,6 +1687,27 @@ void MainWindow::onLoad()
     } else {
         QMessageBox::warning(this,
             QStringLiteral("加载失败"),
+            QStringLiteral("文件不存在或格式不正确。"));
+    }
+}
+
+void MainWindow::onImport()
+{
+    QString path = QFileDialog::getOpenFileName(this,
+        QStringLiteral("导入数据（合并到当前库）"), QString(),
+        QStringLiteral("数据文件 (*.txt);;所有文件 (*)"));
+    if (path.isEmpty()) return;
+
+    if (LibraryManager::getInstance().importFromFile(path.toStdString())) {
+        clearDetailPanel();
+        rebuildCatalogTree();
+        restoreSelectionAfterReload(currentNodeKey());
+        saveDefaultData();
+        refreshPaperTable();
+        showStatus(QStringLiteral("已导入并合并: ") + path);
+    } else {
+        QMessageBox::warning(this,
+            QStringLiteral("导入失败"),
             QStringLiteral("文件不存在或格式不正确。"));
     }
 }
