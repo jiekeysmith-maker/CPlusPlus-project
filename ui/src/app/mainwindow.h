@@ -13,10 +13,12 @@ class QEvent;
 class QLabel;
 class QLineEdit;
 class QPushButton;
+class QStackedWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
 class QTableWidget;
 class QAction;
+class QToolBar;
 class Ui_MainWindow;
 class PaperDialog;
 
@@ -49,6 +51,9 @@ private slots:
     void onAddCatalog();
     void onDeleteCatalog();
     void onCatalogContextMenu(const QPoint &pos);
+    void onAddPublication(const QString &forceType = QString());
+    void onEditSourceFromToolbar();
+    void onDeleteSourceFromToolbar();
     void onOpenPaperAttachment(int row, int column);
     void onViewPaperDetail();
     void onPaperSelectionChanged();
@@ -59,7 +64,9 @@ private slots:
 private:
     enum class LibraryNodeType {
         System,
-        Catalog
+        Catalog,
+        PublicationRoot,
+        PublicationGroup
     };
 
     struct LibraryNodeInfo {
@@ -73,11 +80,16 @@ private:
     void setupMenuBar();
     void setupToolbar();
     void setupDetailPanel();
+    void setupSourceTable();
+    void setupSourceToolbar();
     void rebuildCatalogTree();
     void refreshPaperTable();
+    void refreshSourceTable(const QString &typeFilter);
     void updatePaperTable(const std::vector<Paper> &papers);
     void updateDetailPanel(IdType paperId);
+    void showSourceDetail(IdType sourceId);
     void clearDetailPanel();
+    void restoreDetailPanelLabels();
     std::vector<Paper> collectCurrentPapers() const;
     std::vector<Paper> filterPapers(const std::vector<Paper> &papers, const QString &keyword) const;
     QString paperAuthorsText(const Paper &paper) const;
@@ -88,6 +100,7 @@ private:
     void addPaperToCurrentCatalog(IdType paperId) const;
     bool moveSelectedPaperToCatalog(IdType catalogId);
     IdType selectedPaperId() const;
+    IdType selectedSourceId() const;
     void adjustAuthorColumnWidth();
     bool isUserCatalogNode(const QTreeWidgetItem *item) const;
     bool isSystemNode(const QTreeWidgetItem *item) const;
@@ -107,8 +120,12 @@ private:
 
     Ui::MainWindow *ui = nullptr;
     QTreeWidget *m_sidebar = nullptr;
+    QStackedWidget *m_stackedWidget = nullptr;
     QTableWidget *m_table = nullptr;
+    QTableWidget *m_sourceTable = nullptr;
+    QToolBar *m_sourceToolBar = nullptr;
     QWidget *m_detailPanel = nullptr;
+    QLabel *m_detailPanelTitle = nullptr;
     QLabel *m_detailTitleLabel = nullptr;
     QLabel *m_detailAuthorsLabel = nullptr;
     QLabel *m_detailSourceLabel = nullptr;

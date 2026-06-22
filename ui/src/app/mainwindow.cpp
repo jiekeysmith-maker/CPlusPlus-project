@@ -41,7 +41,11 @@
 #include <set>
 
 #include "paperdialog.h"
+#include "sourcedialog.h"
 #include "StoragePaths.h"
+
+#include <QStackedWidget>
+#include <QToolBar>
 
 namespace {
 constexpr int kRoleNodeType = Qt::UserRole;
@@ -119,7 +123,7 @@ void MainWindow::setupUi()
     m_sidebar->setIndentation(18);
     m_sidebar->setDropIndicatorShown(true);
 
-    m_table = new QTableWidget(splitter);
+    m_table = new QTableWidget();
     m_table->setColumnCount(6);
     m_table->setHorizontalHeaderLabels({
         QStringLiteral("标题"),
@@ -145,10 +149,17 @@ void MainWindow::setupUi()
     m_table->verticalHeader()->setVisible(false);
     m_table->setWordWrap(false);
 
+    setupSourceTable();
+    setupSourceToolbar();
+
+    m_stackedWidget = new QStackedWidget(splitter);
+    m_stackedWidget->addWidget(m_table);       // page 0: 论文表
+    m_stackedWidget->addWidget(m_sourceTable); // page 1: 出版物表
+
     setupDetailPanel();
 
     splitter->addWidget(m_sidebar);
-    splitter->addWidget(m_table);
+    splitter->addWidget(m_stackedWidget);
     splitter->addWidget(m_detailPanel);
     splitter->setStretchFactor(0, 0);
     splitter->setStretchFactor(1, 1);
@@ -252,12 +263,12 @@ void MainWindow::setupDetailPanel()
     panelLayout->setContentsMargins(14, 14, 14, 14);
     panelLayout->setSpacing(10);
 
-    auto *title = new QLabel(QStringLiteral("文献详情"), m_detailPanel);
-    QFont titleFont = title->font();
+    m_detailPanelTitle = new QLabel(QStringLiteral("文献详情"), m_detailPanel);
+    QFont titleFont = m_detailPanelTitle->font();
     titleFont.setBold(true);
     titleFont.setPointSize(titleFont.pointSize() + 2);
-    title->setFont(titleFont);
-    panelLayout->addWidget(title);
+    m_detailPanelTitle->setFont(titleFont);
+    panelLayout->addWidget(m_detailPanelTitle);
 
     auto *scrollArea = new QScrollArea(m_detailPanel);
     scrollArea->setWidgetResizable(true);
@@ -305,6 +316,48 @@ void MainWindow::setupDetailPanel()
     m_detailPanel->hide();
 }
 
+void MainWindow::setupSourceTable()
+{
+    m_sourceTable = new QTableWidget();
+    m_sourceTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_sourceTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_sourceTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_sourceTable->setAlternatingRowColors(true);
+    m_sourceTable->verticalHeader()->setVisible(false);
+    m_sourceTable->setWordWrap(false);
+    m_sourceTable->setStyleSheet(
+        "QTableWidget { border: none; gridline-color: #e5e7eb; font-size: 13px; }"
+        "QHeaderView::section { background: #f3f4f6; padding: 8px; border: none; border-right: 1px solid #e5e7eb; }"
+        "QTableWidget::item:selected { background: #e8f2ff; color: #111827; }");
+
+    connect(m_sourceTable, &QTableWidget::itemSelectionChanged,
+            this, &MainWindow::onPaperSelectionChanged);
+}
+
+void MainWindow::setupSourceToolbar()
+{
+    m_sourceToolBar = new QToolBar(QStringLiteral("出版物工具栏"), this);
+    m_sourceToolBar->setVisible(false);
+
+    QAction *actAddJournal = m_sourceToolBar->addAction(QStringLiteral("新增期刊"));
+    connect(actAddJournal, &QAction::triggered, this, [this]() {
+        onAddPublication(QStringLiteral("Journal"));
+    });
+
+    QAction *actAddConf = m_sourceToolBar->addAction(QStringLiteral("新增会议"));
+    connect(actAddConf, &QAction::triggered, this, [this]() {
+        onAddPublication(QStringLiteral("Conference"));
+    });
+
+    QAction *actEdit = m_sourceToolBar->addAction(QStringLiteral("编辑"));
+    connect(actEdit, &QAction::triggered, this, &MainWindow::onEditSourceFromToolbar);
+
+    QAction *actDelete = m_sourceToolBar->addAction(QStringLiteral("删除"));
+    connect(actDelete, &QAction::triggered, this, &MainWindow::onDeleteSourceFromToolbar);
+
+    addToolBar(Qt::TopToolBarArea, m_sourceToolBar);
+}
+
 void MainWindow::applyTreeStyle()
 {
     m_sidebar->setStyleSheet(
@@ -326,6 +379,7 @@ void MainWindow::rebuildCatalogTree()
     m_sidebar->blockSignals(true);
     m_sidebar->clear();
 
+    // === 我的文库 ===
     auto *myLibrary = new QTreeWidgetItem(m_sidebar, {QStringLiteral("我的文库")});
     myLibrary->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::System));
     myLibrary->setData(0, kRoleNodeKey, QStringLiteral("library"));
@@ -367,7 +421,24 @@ void MainWindow::rebuildCatalogTree()
 
     buildChildren(myLibrary, INVALID_ID);
 
+    // === 出版物库 ===
+    auto *pubRoot = new QTreeWidgetItem(m_sidebar, {QStringLiteral("出版物库")});
+    pubRoot->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::PublicationRoot));
+    pubRoot->setData(0, kRoleNodeKey, QStringLiteral("publications"));
+    pubRoot->setData(0, kRoleDeletable, false);
+
+    auto *journals = new QTreeWidgetItem(pubRoot, {QStringLiteral("期刊")});
+    journals->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::PublicationGroup));
+    journals->setData(0, kRoleNodeKey, QStringLiteral("journals"));
+    journals->setData(0, kRoleDeletable, false);
+
+    auto *conferences = new QTreeWidgetItem(pubRoot, {QStringLiteral("会议")});
+    conferences->setData(0, kRoleNodeType, static_cast<int>(LibraryNodeType::PublicationGroup));
+    conferences->setData(0, kRoleNodeKey, QStringLiteral("conferences"));
+    conferences->setData(0, kRoleDeletable, false);
+
     myLibrary->setExpanded(true);
+    pubRoot->setExpanded(true);
     recent->setExpanded(true);
     m_sidebar->expandItem(myLibrary);
 
@@ -481,6 +552,21 @@ std::vector<Paper> MainWindow::collectCurrentPapers() const
         }
         if (isUserCatalogNode(item)) {
             return mgr.getPapersInCatalog(currentCatalogId());
+        }
+        // 出版物库节点
+        const int nodeType = item->data(0, kRoleNodeType).toInt();
+        if (nodeType == static_cast<int>(LibraryNodeType::PublicationGroup)) {
+            const QString pubType = (key == QStringLiteral("conferences"))
+                ? QStringLiteral("Conference") : QStringLiteral("Journal");
+            std::vector<Paper> papers;
+            for (const auto &paperPair : mgr.getAllPapers()) {
+                const Paper &paper = paperPair.second;
+                Source *src = mgr.findSource(paper.getSourceId());
+                if (src && src->getType() == pubType.toStdString()) {
+                    papers.push_back(paper);
+                }
+            }
+            return papers;
         }
     }
 
@@ -597,6 +683,128 @@ void MainWindow::refreshPaperTable()
     updatePaperTable(filterPapers(collectCurrentPapers(), keyword));
 }
 
+void MainWindow::refreshSourceTable(const QString &typeFilter)
+{
+    auto &mgr = LibraryManager::getInstance();
+    const auto &sources = mgr.getAllSources();
+
+    // 确定表头
+    const bool showAll = (typeFilter == QStringLiteral("all"));
+    if (showAll) {
+        // 全部出版物：显示类型列
+        m_sourceTable->setColumnCount(9);
+        m_sourceTable->setHorizontalHeaderLabels({
+            QStringLiteral("编号"),
+            QStringLiteral("类型"),
+            QStringLiteral("简称"),
+            QStringLiteral("全名"),
+            QStringLiteral("领域"),
+            QStringLiteral("出版单位"),
+            QStringLiteral("检索类型"),
+            QStringLiteral("最新影响因子/开会地址"),
+            QStringLiteral("备注")
+        });
+    } else if (typeFilter == QStringLiteral("Journal")) {
+        m_sourceTable->setColumnCount(8);
+        m_sourceTable->setHorizontalHeaderLabels({
+            QStringLiteral("编号"),
+            QStringLiteral("简称"),
+            QStringLiteral("全名"),
+            QStringLiteral("领域"),
+            QStringLiteral("出版单位"),
+            QStringLiteral("检索类型"),
+            QStringLiteral("最新影响因子"),
+            QStringLiteral("备注")
+        });
+    } else {
+        m_sourceTable->setColumnCount(8);
+        m_sourceTable->setHorizontalHeaderLabels({
+            QStringLiteral("编号"),
+            QStringLiteral("简称"),
+            QStringLiteral("全名"),
+            QStringLiteral("领域"),
+            QStringLiteral("开会地址"),
+            QStringLiteral("出版单位"),
+            QStringLiteral("检索类型"),
+            QStringLiteral("备注")
+        });
+    }
+
+    // 筛选并按简称排序
+    std::vector<std::shared_ptr<Source>> filtered;
+    for (const auto &pair : sources) {
+        if (showAll || pair.second->getType() == typeFilter.toStdString()) {
+            filtered.push_back(pair.second);
+        }
+    }
+    std::sort(filtered.begin(), filtered.end(), [](const auto &a, const auto &b) {
+        return a->getShortName() < b->getShortName();
+    });
+
+    m_sourceTable->setRowCount(static_cast<int>(filtered.size()));
+    for (int row = 0; row < static_cast<int>(filtered.size()); ++row) {
+        const auto &src = filtered[row];
+        int col = 0;
+
+        auto *idItem = new QTableWidgetItem(QString::number(row + 1));
+        idItem->setData(kRolePaperId, static_cast<qint64>(src->getId()));
+        m_sourceTable->setItem(row, col++, idItem);
+
+        if (showAll) {
+            m_sourceTable->setItem(row, col++,
+                new QTableWidgetItem(QString::fromStdString(src->getType())));
+        }
+
+        m_sourceTable->setItem(row, col++,
+            new QTableWidgetItem(QString::fromStdString(src->getShortName())));
+        m_sourceTable->setItem(row, col++,
+            new QTableWidgetItem(QString::fromStdString(src->getFullName())));
+        m_sourceTable->setItem(row, col++,
+            new QTableWidgetItem(QString::fromStdString(src->getField())));
+
+        if (typeFilter == QStringLiteral("Conference")) {
+            auto *conf = dynamic_cast<const Conference*>(src.get());
+            m_sourceTable->setItem(row, col++,
+                new QTableWidgetItem(conf ? QString::fromStdString(conf->getMeetingAddress()) : QString()));
+        }
+
+        m_sourceTable->setItem(row, col++,
+            new QTableWidgetItem(QString::fromStdString(src->getPublisher())));
+
+        m_sourceTable->setItem(row, col++,
+            new QTableWidgetItem(QString::fromStdString(src->getRetrievalType())));
+
+        if (showAll || typeFilter == QStringLiteral("Journal")) {
+            auto *journal = dynamic_cast<const Journal*>(src.get());
+            const double impact = journal ? journal->getImpactFactor() : 0.0;
+            m_sourceTable->setItem(row, col++,
+                new QTableWidgetItem(impact > 0 ? QString::number(impact, 'f', 3) : QString()));
+        }
+        if (showAll && typeFilter != QStringLiteral("Journal")) {
+            // 对于"all"模式，会议行的影响因子列留空，由会议地址补充
+            // 已在上面处理
+        }
+
+        m_sourceTable->setItem(row, col++,
+            new QTableWidgetItem(QString::fromStdString(src->getRemark())));
+    }
+
+    m_sourceTable->horizontalHeader()->setStretchLastSection(true);
+    m_sourceTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    m_sourceTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    m_sourceTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+}
+
+IdType MainWindow::selectedSourceId() const
+{
+    if (!m_sourceTable) return INVALID_ID;
+    const int row = m_sourceTable->currentRow();
+    if (row < 0) return INVALID_ID;
+    QTableWidgetItem *idItem = m_sourceTable->item(row, 0);
+    if (!idItem) return INVALID_ID;
+    return static_cast<IdType>(idItem->data(kRolePaperId).toLongLong());
+}
+
 void MainWindow::updateDetailPanel(IdType paperId)
 {
     Paper *paper = LibraryManager::getInstance().findPaper(paperId);
@@ -629,9 +837,76 @@ void MainWindow::updateDetailPanel(IdType paperId)
     m_detailKeywordsLabel->setText(valueOrDefault(paperKeywordsText(*paper)));
     m_detailFilePathLabel->setText(filePath.trimmed().isEmpty() ? QStringLiteral("无附件") : nativeFilePath);
     m_detailFilePathLabel->setToolTip(nativeFilePath);
+    m_openDetailAttachmentButton->setVisible(true);
     m_openDetailAttachmentButton->setEnabled(!filePath.trimmed().isEmpty());
 
     m_detailPanel->show();
+}
+
+void MainWindow::showSourceDetail(IdType sourceId)
+{
+    auto &mgr = LibraryManager::getInstance();
+    Source *src = mgr.findSource(sourceId);
+    if (!src) {
+        clearDetailPanel();
+        return;
+    }
+
+    m_detailPaperId = sourceId;
+
+    if (m_detailPanelTitle) {
+        m_detailPanelTitle->setText(QStringLiteral("出版物详情"));
+    }
+
+    auto setLabel = [](QLabel *label, const QString &text) {
+        if (label) {
+            label->setText(text.isEmpty() ? QStringLiteral("未填写") : text);
+        }
+    };
+
+    setLabel(m_detailTitleLabel, QString::fromStdString(src->getShortName()));
+    setLabel(m_detailAuthorsLabel,
+        src->getType() == "Journal" ? QStringLiteral("期刊") : QStringLiteral("会议"));
+    setLabel(m_detailSourceLabel, QString::fromStdString(src->getFullName()));
+    setLabel(m_detailPublishDateLabel, QString::fromStdString(src->getField()));
+    setLabel(m_detailUploadTimeLabel, QString::fromStdString(src->getPublisher()));
+    setLabel(m_detailKeywordsLabel, QString::fromStdString(src->getRetrievalType()));
+
+    QString extra;
+    if (src->getType() == "Journal") {
+        auto *j = dynamic_cast<const Journal*>(src);
+        if (j && j->getImpactFactor() > 0.0) {
+            extra = QStringLiteral("最新影响因子: ") + QString::number(j->getImpactFactor(), 'f', 3);
+        }
+    } else {
+        auto *c = dynamic_cast<const Conference*>(src);
+        extra = QStringLiteral("开会地址: ") + QString::fromStdString(c ? c->getMeetingAddress() : "");
+    }
+    setLabel(m_detailFilePathLabel, extra);
+
+    // 更新表单行标签
+    auto updateRowLabel = [this](int row, const QString &text) {
+        if (auto *form = qobject_cast<QFormLayout*>(m_detailPanel->findChild<QScrollArea*>()->widget()->layout())) {
+            if (auto *label = qobject_cast<QLabel*>(form->itemAt(row, QFormLayout::LabelRole)->widget())) {
+                label->setText(text);
+            }
+        }
+    };
+
+    updateRowLabel(0, QStringLiteral("简称:"));
+    updateRowLabel(1, QStringLiteral("类型:"));
+    updateRowLabel(2, QStringLiteral("全名:"));
+    updateRowLabel(3, QStringLiteral("领域:"));
+    updateRowLabel(4, QStringLiteral("出版单位:"));
+    updateRowLabel(5, QStringLiteral("检索类型:"));
+    updateRowLabel(6, QStringLiteral("补充信息:"));
+
+    if (m_openDetailAttachmentButton) {
+        m_openDetailAttachmentButton->setVisible(false);
+    }
+    if (m_detailPanel) {
+        m_detailPanel->show();
+    }
 }
 
 void MainWindow::clearDetailPanel()
@@ -655,8 +930,47 @@ void MainWindow::clearDetailPanel()
     }
 }
 
+void MainWindow::restoreDetailPanelLabels()
+{
+    auto setRowLabel = [this](int row, const QString &text) {
+        if (auto *form = qobject_cast<QFormLayout*>(
+                m_detailPanel->findChild<QScrollArea*>()->widget()->layout())) {
+            if (auto *label = qobject_cast<QLabel*>(
+                    form->itemAt(row, QFormLayout::LabelRole)->widget())) {
+                label->setText(text);
+            }
+        }
+    };
+    setRowLabel(0, QStringLiteral("完整标题:"));
+    setRowLabel(1, QStringLiteral("作者名字:"));
+    setRowLabel(2, QStringLiteral("出版物:"));
+    setRowLabel(3, QStringLiteral("发表时间:"));
+    setRowLabel(4, QStringLiteral("上传时间:"));
+    setRowLabel(5, QStringLiteral("关键词:"));
+    setRowLabel(6, QStringLiteral("附件链接:"));
+    if (m_openDetailAttachmentButton) {
+        m_openDetailAttachmentButton->setVisible(true);
+    }
+}
+
 void MainWindow::onViewPaperDetail()
 {
+    // 出版物视图：显示出版物详情
+    if (m_stackedWidget && m_stackedWidget->currentIndex() == 1) {
+        const IdType sourceId = selectedSourceId();
+        if (sourceId == INVALID_ID) {
+            clearDetailPanel();
+            return;
+        }
+        if (m_detailPanel && m_detailPanel->isVisible() && m_detailPaperId == sourceId) {
+            m_detailPanel->hide();
+            return;
+        }
+        showSourceDetail(sourceId);
+        return;
+    }
+
+    // 论文视图：显示论文详情
     const IdType paperId = selectedPaperId();
     if (paperId == INVALID_ID) {
         clearDetailPanel();
@@ -672,8 +986,20 @@ void MainWindow::onViewPaperDetail()
 void MainWindow::onPaperSelectionChanged()
 {
     const bool hasPaper = selectedPaperId() != INVALID_ID;
+    const bool hasSource = (selectedSourceId() != INVALID_ID);
     if (m_viewDetailButton) {
-        m_viewDetailButton->setEnabled(hasPaper);
+        m_viewDetailButton->setEnabled(hasPaper || hasSource);
+    }
+
+    // 详情面板已打开时自动刷新
+    if (m_detailPanel && m_detailPanel->isVisible()) {
+        if (hasSource && m_stackedWidget && m_stackedWidget->currentIndex() == 1) {
+            if (m_detailPaperId != selectedSourceId()) {
+                showSourceDetail(selectedSourceId());
+            }
+        } else if (hasPaper && m_detailPaperId != selectedPaperId()) {
+            updateDetailPanel(selectedPaperId());
+        }
     }
 }
 
@@ -701,7 +1027,31 @@ void MainWindow::onSidebarItemChanged(QTreeWidgetItem *current, QTreeWidgetItem 
     Q_UNUSED(previous)
     if (!current) return;
     m_currentNodeKey = current->data(0, kRoleNodeKey).toString();
-    refreshPaperTable();
+
+    const int nodeType = current->data(0, kRoleNodeType).toInt();
+    if (nodeType == static_cast<int>(LibraryNodeType::PublicationRoot)
+        || nodeType == static_cast<int>(LibraryNodeType::PublicationGroup)) {
+        // 切换到出版物表
+        m_stackedWidget->setCurrentIndex(1);
+        m_sourceToolBar->setVisible(true);
+        m_detailPanel->hide();
+        if (m_currentNodeKey == QStringLiteral("journals")) {
+            refreshSourceTable(QStringLiteral("Journal"));
+        } else if (m_currentNodeKey == QStringLiteral("conferences")) {
+            refreshSourceTable(QStringLiteral("Conference"));
+        } else {
+            refreshSourceTable(QStringLiteral("all"));
+        }
+    } else {
+        // 切换回论文表
+        m_stackedWidget->setCurrentIndex(0);
+        m_sourceToolBar->setVisible(false);
+        if (m_detailPanelTitle) {
+            m_detailPanelTitle->setText(QStringLiteral("文献详情"));
+        }
+        restoreDetailPanelLabels();
+        refreshPaperTable();
+    }
 }
 
 void MainWindow::onSearchTextChanged(const QString &text)
@@ -849,29 +1199,121 @@ void MainWindow::onDeleteCatalog()
     showStatus(QStringLiteral("已删除目录"));
 }
 
+void MainWindow::onAddPublication(const QString &forceType)
+{
+    SourceDialog dlg(this);
+    if (!forceType.isEmpty()) {
+        dlg.setForceType(forceType);
+    }
+    if (dlg.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    auto src = dlg.getSource();
+    auto &mgr = LibraryManager::getInstance();
+    mgr.addSource(src);
+
+    const QString filter = (src->getType() == "Journal")
+        ? QStringLiteral("Journal") : QStringLiteral("Conference");
+    refreshSourceTable(filter);
+    showStatus(QStringLiteral("已添加出版物"));
+}
+
+void MainWindow::onEditSourceFromToolbar()
+{
+    const IdType sourceId = selectedSourceId();
+    if (sourceId == INVALID_ID) {
+        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先在表中选择一个出版物。"));
+        return;
+    }
+    auto &mgr = LibraryManager::getInstance();
+    Source *src = mgr.findSource(sourceId);
+    if (!src) return;
+
+    SourceDialog dlg(this);
+    dlg.setSource(*src);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    auto updatedSrc = dlg.getSource();
+    updatedSrc->setId(sourceId);
+    mgr.updateSource(sourceId, updatedSrc);
+    refreshSourceTable(QString::fromStdString(updatedSrc->getType()));
+    showStatus(QStringLiteral("已更新出版物"));
+}
+
+void MainWindow::onDeleteSourceFromToolbar()
+{
+    const IdType sourceId = selectedSourceId();
+    if (sourceId == INVALID_ID) {
+        QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("请先在表中选择一个出版物。"));
+        return;
+    }
+    auto &mgr = LibraryManager::getInstance();
+    Source *src = mgr.findSource(sourceId);
+    if (!src) return;
+
+    auto reply = QMessageBox::question(this,
+        QStringLiteral("删除出版物"),
+        QStringLiteral("确定删除出版物「%1」吗？相关文献将变为未关联状态。")
+            .arg(QString::fromStdString(src->getShortName())));
+    if (reply != QMessageBox::Yes) return;
+
+    mgr.removeSource(sourceId);
+    refreshSourceTable(QStringLiteral("all"));
+    showStatus(QStringLiteral("已删除出版物"));
+}
+
 void MainWindow::onCatalogContextMenu(const QPoint &pos)
 {
     QTreeWidgetItem *item = m_sidebar->itemAt(pos);
     QMenu menu(m_sidebar);
 
-    if (item && isUserCatalogNode(item)) {
-        // User catalog node: add child / delete
-        m_sidebar->setCurrentItem(item);
+    if (!item) {
+        return;
+    }
+
+    m_sidebar->setCurrentItem(item);
+    const int nodeType = item->data(0, kRoleNodeType).toInt();
+    const QString key = item->data(0, kRoleNodeKey).toString();
+
+    // —— 用户目录节点 ——
+    if (isUserCatalogNode(item)) {
         QAction *actAddChild = menu.addAction(QStringLiteral("添加子目录"));
         QAction *actDelete = menu.addAction(QStringLiteral("删除目录"));
-
         connect(actAddChild, &QAction::triggered, this, &MainWindow::onAddCatalog);
         connect(actDelete, &QAction::triggered, this, &MainWindow::onDeleteCatalog);
-    } else if (item) {
-        const QString key = item->data(0, kRoleNodeKey).toString();
-        if (key == QStringLiteral("library")) {
-            // Only "我的文库" root — not "全部文献"/"最近添加"/"未分类"
-            QAction *actAdd = menu.addAction(QStringLiteral("添加目录"));
-            connect(actAdd, &QAction::triggered, this, &MainWindow::onAddCatalog);
-        } else {
-            return;
-        }
-    } else {
+    }
+    // —— "我的文库"根节点 ——
+    else if (key == QStringLiteral("library")) {
+        QAction *actAdd = menu.addAction(QStringLiteral("添加目录"));
+        connect(actAdd, &QAction::triggered, this, &MainWindow::onAddCatalog);
+    }
+    // —— "出版物库"根节点 ——
+    else if (key == QStringLiteral("publications")) {
+        QAction *actAddJournal = menu.addAction(QStringLiteral("新增期刊"));
+        QAction *actAddConf = menu.addAction(QStringLiteral("新增会议"));
+        connect(actAddJournal, &QAction::triggered, this, [this]() {
+            onAddPublication(QStringLiteral("Journal"));
+        });
+        connect(actAddConf, &QAction::triggered, this, [this]() {
+            onAddPublication(QStringLiteral("Conference"));
+        });
+    }
+    // —— "期刊" 分组 ——
+    else if (key == QStringLiteral("journals")) {
+        QAction *actAdd = menu.addAction(QStringLiteral("新增期刊"));
+        connect(actAdd, &QAction::triggered, this, [this]() {
+            onAddPublication(QStringLiteral("Journal"));
+        });
+    }
+    // —— "会议" 分组 ——
+    else if (key == QStringLiteral("conferences")) {
+        QAction *actAdd = menu.addAction(QStringLiteral("新增会议"));
+        connect(actAdd, &QAction::triggered, this, [this]() {
+            onAddPublication(QStringLiteral("Conference"));
+        });
+    }
+    else {
         return;
     }
 
