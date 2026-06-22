@@ -414,7 +414,7 @@ void MainWindow::setupSourceTable()
 {
     m_sourceTable = new QTableWidget();
     m_sourceTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    m_sourceTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_sourceTable->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_sourceTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_sourceTable->setAlternatingRowColors(true);
     m_sourceTable->verticalHeader()->setVisible(false);
@@ -676,10 +676,10 @@ void MainWindow::updateToolbarForMode()
         m_deletePaperAction->setText(authors ? QStringLiteral("删除作者") : QStringLiteral("删除文献"));
     }
     if (m_addPaperAction) {
-        m_addPaperAction->setVisible(!pubs);
+        m_addPaperAction->setVisible(!authors && !pubs);
     }
     if (m_addAuthorAction) {
-        m_addAuthorAction->setVisible(!pubs);
+        m_addAuthorAction->setVisible(authors && !pubs);
     }
     if (m_searchEdit) {
         m_searchEdit->setPlaceholderText(pubs
@@ -1587,14 +1587,23 @@ void MainWindow::onSearchClicked()
 void MainWindow::onShowAllClicked()
 {
     m_searchEdit->clear();
-    if (!isAuthorMode()) {
+    if (isPublicationMode()) {
+        refreshSourceTable(QStringLiteral("all"));
+    } else if (!isAuthorMode()) {
         selectSystemNode(QStringLiteral("all"));
     }
-    refreshPaperTable();
+    if (!isPublicationMode()) {
+        refreshPaperTable();
+    }
 }
 
 void MainWindow::onSelectAllClicked()
 {
+    if (isPublicationMode() && m_sourceTable && m_sourceTable->rowCount() > 0) {
+        m_sourceTable->selectAll();
+        onPaperSelectionChanged();
+        return;
+    }
     if (!m_table || m_table->rowCount() == 0) {
         return;
     }

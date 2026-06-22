@@ -1,8 +1,18 @@
 #!/usr/bin/env python3
 """从 PDF 目录生成程序可读的数据文件 + 随机合成数据补足 ≥100 条"""
-import os, random, shutil
+import datetime, os, random, shutil
 
 SEP = '\x1E'
+
+def random_upload_time():
+    y = random.randint(2020, 2025)
+    m = random.randint(1, 12)
+    d = random.randint(1, 28)
+    h = random.randint(8, 22)
+    mi = random.randint(0, 59)
+    s = random.randint(0, 59)
+    return f"{y:04d}-{m:02d}-{d:02d} {h:02d}:{mi:02d}:{s:02d}"
+
 PDF_DIR = r"D:\大创\相关应用论文"
 DATA_DIR = r"C:\Users\17154\Desktop\literature_management\CPlusPlus-project\data"
 
@@ -279,7 +289,7 @@ def main():
                 ";".join(p["author_ids"]),       # authorIds
                 "",                              # attachmentIds
                 dst,                             # filePath
-                "2026-06-18 00:00:00",           # uploadTime
+                random_upload_time(),           # uploadTime
                 "",                              # remark
             ]
             f.write(SEP.join(parts) + "\n")
@@ -349,67 +359,58 @@ def main():
                 ";".join(p["author_ids"]),       # authorIds
                 "",                              # attachmentIds
                 dst,                             # filePath
-                "2026-06-18 00:00:00",           # uploadTime
+                random_upload_time(),           # uploadTime
                 "",                              # remark
             ]
             f.write(SEP.join(parts) + "\n")
 
     # ── 输出 catalogs.txt ──────────────────────────────────
+    catalog_lines = []  # 收集目录行，后续传给 write_combined
     catalog_id = 1
+
+    mot_ids = [str(i) for i in range(1, 6)]
+    catalog_lines.append(SEP.join([str(catalog_id), "多目标跟踪", "0", "MOT相关论文", "-1", "", ";".join(mot_ids)]))
+    catalog_id += 1
+
+    det_ids = ["6"]
+    for p in all_papers:
+        if p["id"] > 6 and "detection" in p["title"].lower():
+            det_ids.append(str(p["id"]))
+            if len(det_ids) >= 25: break
+    catalog_lines.append(SEP.join([str(catalog_id), "目标检测", "0", "Object Detection相关论文", "-1", "", ";".join(det_ids)]))
+    catalog_id += 1
+
+    seg_ids = [str(p["id"]) for p in all_papers if "segmentation" in p["title"].lower()]
+    if seg_ids:
+        catalog_lines.append(SEP.join([str(catalog_id), "图像分割", "0", "Segmentation相关论文", "-1", "", ";".join(seg_ids)]))
+        catalog_id += 1
+
+    gen_ids = [str(p["id"]) for p in all_papers
+               if any(kw in p["title"].lower() for kw in ["diffusion", "nerf", "generat", "splatting", "gan"])]
+    if gen_ids:
+        catalog_lines.append(SEP.join([str(catalog_id), "生成模型", "0", "生成式AI相关论文", "-1", "", ";".join(gen_ids)]))
+        catalog_id += 1
+
+    trans_ids = [str(p["id"]) for p in all_papers
+                 if any(kw in p["title"].lower() for kw in ["transformer", "attention", "self-attention"])]
+    if trans_ids:
+        catalog_lines.append(SEP.join([str(catalog_id), "Transformer架构", "0", "Transformer相关论文", "-1", "", ";".join(trans_ids)]))
+        catalog_id += 1
+
+    all_ids = [str(p["id"]) for p in all_papers]
+    catalog_lines.append(SEP.join([str(catalog_id), "全部文献", "0", "所有文献汇总", "-1", "", ";".join(all_ids)]))
+
     with open(os.path.join(DATA_DIR, "catalogs", "catalogs.txt"), "w", encoding="utf-8") as f:
-        # 目录1: 多目标跟踪 (real papers 1-5, paper id: 1-5)
-        mot_ids = [str(i) for i in range(1, 6)]
-        parts = [str(catalog_id), "多目标跟踪", "0", "MOT相关论文", "-1", "", ";".join(mot_ids)]
-        f.write(SEP.join(parts) + "\n")
-        catalog_id += 1
+        for line in catalog_lines:
+            f.write(line + "\n")
 
-        # 目录2: 目标检测 (real paper 6 = id 6, + 部分合成的检测论文)
-        det_ids = ["6"]
-        for p in all_papers:
-            if p["id"] > 6 and "detection" in p["title"].lower():
-                det_ids.append(str(p["id"]))
-                if len(det_ids) >= 25:
-                    break
-        parts = [str(catalog_id), "目标检测", "0", "Object Detection相关论文", "-1", "", ";".join(det_ids)]
-        f.write(SEP.join(parts) + "\n")
-        catalog_id += 1
-
-        # 目录3: 语义分割
-        seg_ids = [str(p["id"]) for p in all_papers if "segmentation" in p["title"].lower()]
-        if seg_ids:
-            parts = [str(catalog_id), "图像分割", "0", "Segmentation相关论文", "-1", "", ";".join(seg_ids)]
-            f.write(SEP.join(parts) + "\n")
-            catalog_id += 1
-
-        # 目录4: 生成模型 (NeRF, Diffusion, GAN, etc.)
-        gen_ids = [str(p["id"]) for p in all_papers
-                   if any(kw in p["title"].lower() for kw in ["diffusion", "nerf", "generat", "splatting", "gan"])]
-        if gen_ids:
-            parts = [str(catalog_id), "生成模型", "0", "生成式AI相关论文", "-1", "", ";".join(gen_ids)]
-            f.write(SEP.join(parts) + "\n")
-            catalog_id += 1
-
-        # 目录5: Transformer 架构
-        trans_ids = [str(p["id"]) for p in all_papers
-                     if any(kw in p["title"].lower() for kw in ["transformer", "attention", "self-attention"])]
-        if trans_ids:
-            parts = [str(catalog_id), "Transformer架构", "0", "Transformer相关论文", "-1", "", ";".join(trans_ids)]
-            f.write(SEP.join(parts) + "\n")
-            catalog_id += 1
-
-        # 目录6: 全部文献（根目录）
-        all_ids = [str(p["id"]) for p in all_papers]
-        parts = [str(catalog_id), "全部文献", "0", "所有文献汇总", "-1", "", ";".join(all_ids)]
-        f.write(SEP.join(parts) + "\n")
-        catalog_id += 1
-
-    print(f"[catalogs] {catalog_id - 1} 个目录")
+    print(f"[catalogs] {len(catalog_lines)} 个目录")
 
     # ── 空文件 ─────────────────────────────────────────────
     open(os.path.join(DATA_DIR, "attachments", "attachments.txt"), "w").close()
 
     # ── 输出合并版 library_data.txt ─────────────────────────
-    write_combined(author_map, all_papers, sources, paper_source)
+    write_combined(author_map, all_papers, sources, paper_source, catalog_lines)
 
     # ── 数据有效性校验 ─────────────────────────────────────
     validate(all_papers, author_map)
@@ -418,10 +419,12 @@ def main():
     print(f"   数据路径: {DATA_DIR}")
 
 
-def write_combined(author_map, all_papers, sources=None, paper_source=None):
+def write_combined(author_map, all_papers, sources=None, paper_source=None, catalog_lines=None):
     """输出合并单文件 library/library_data.txt 作为备份"""
     if paper_source is None:
         paper_source = {}
+    if catalog_lines is None:
+        catalog_lines = []
     lib_dir = os.path.join(DATA_DIR, "library")
     os.makedirs(lib_dir, exist_ok=True)
     with open(os.path.join(lib_dir, "library_data.txt"), "w", encoding="utf-8") as f:
@@ -433,12 +436,11 @@ def write_combined(author_map, all_papers, sources=None, paper_source=None):
         f.write("[SOURCES]\n")
         if sources:
             for sid, stype, sname in sources:
-                type_prefix = stype
                 if stype == "Journal":
                     inner = SEP.join([str(sid), sname, "", "", "", "", "", "", "0.0"])
                 else:
                     inner = SEP.join([str(sid), sname, "", "", "", "", "", "", ""])
-                f.write(type_prefix + SEP + inner + "\n")
+                f.write(stype + SEP + inner + "\n")
 
         f.write("[PAPERS]\n")
         for p in all_papers:
@@ -448,12 +450,14 @@ def write_combined(author_map, all_papers, sources=None, paper_source=None):
                 ";".join(p["keywords"]), p.get("abstract", ""),
                 p["year"], sid, "", p["venue"], "",
                 ";".join(p["author_ids"]), "", "",
-                "2026-06-18 00:00:00", "",
+                random_upload_time(), "",
             ]
             f.write(SEP.join(parts) + "\n")
 
         f.write("[ATTACHMENTS]\n")
         f.write("[CATALOGS]\n")
+        for line in catalog_lines:
+            f.write(line + "\n")
 
 
 def validate(all_papers, author_map):
