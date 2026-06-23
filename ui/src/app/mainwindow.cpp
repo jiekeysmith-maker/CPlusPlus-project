@@ -33,6 +33,7 @@
 #include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSizePolicy>
+#include <QSettings>
 #include <QToolBar>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
@@ -62,6 +63,24 @@ constexpr int kRoleAuthorId = Qt::UserRole + 5;
 QString joinStrings(const QStringList &items, const QString &separator = QStringLiteral("; "))
 {
     return items.join(separator);
+}
+
+bool hasPaperText(const std::string &value)
+{
+    return !QString::fromStdString(value).trimmed().isEmpty();
+}
+
+bool isDisplayablePaper(const Paper &paper)
+{
+    if (paper.getId() == INVALID_ID) {
+        return false;
+    }
+    return hasPaperText(paper.getTitle())
+        || hasPaperText(paper.getCode())
+        || hasPaperText(paper.getAbstract())
+        || hasPaperText(paper.getFilePath())
+        || hasPaperText(paper.getUploadTime())
+        || hasPaperText(paper.getRemark());
 }
 
 QString normalizedAbsolutePath(const QString &path)
@@ -250,6 +269,37 @@ void MainWindow::setupMenuBar()
     QAction *exitAction = fileMenu->addAction(QStringLiteral("退出(&X)"));
     exitAction->setShortcut(QKeySequence::Quit);
     connect(exitAction, &QAction::triggered, this, &QMainWindow::close);
+
+    QMenu *toolsMenu = menuBar()->addMenu(QStringLiteral("工具(&T)"));
+    m_onlineMetadataAction = toolsMenu->addAction(QStringLiteral("启用在线元数据查询"));
+    m_onlineMetadataAction->setCheckable(true);
+    QSettings settings;
+    auto updateOnlineMetadataTooltip = [this](bool enabled) {
+        if (!m_onlineMetadataAction) {
+            return;
+        }
+        const QString tip = enabled
+            ? QStringLiteral("在线元数据查询已开启")
+            : QStringLiteral("在线元数据查询已关闭，仅使用本地 PDF 解析");
+        m_onlineMetadataAction->setToolTip(tip);
+        m_onlineMetadataAction->setStatusTip(tip);
+    };
+    const bool onlineMetadataEnabled =
+        settings.value(QStringLiteral("metadata/onlineLookupEnabled"), true).toBool();
+    m_onlineMetadataAction->setChecked(onlineMetadataEnabled);
+    updateOnlineMetadataTooltip(onlineMetadataEnabled);
+    connect(m_onlineMetadataAction, &QAction::toggled, this, [this](bool enabled) {
+        QSettings settings;
+        settings.setValue(QStringLiteral("metadata/onlineLookupEnabled"), enabled);
+        settings.sync();
+        m_onlineMetadataAction->setToolTip(enabled
+            ? QStringLiteral("在线元数据查询已开启")
+            : QStringLiteral("在线元数据查询已关闭，仅使用本地 PDF 解析"));
+        m_onlineMetadataAction->setStatusTip(m_onlineMetadataAction->toolTip());
+        showStatus(enabled
+            ? QStringLiteral("已启用在线元数据查询")
+            : QStringLiteral("已关闭在线元数据查询，将只使用本地 PDF 解析"));
+    });
 }
 
 void MainWindow::setupToolbar()
@@ -899,11 +949,18 @@ std::vector<Author> MainWindow::filterAuthors(const std::vector<Author> &authors
 
 void MainWindow::updatePaperTable(const std::vector<Paper> &papers)
 {
+    std::vector<Paper> displayPapers;
+    for (const Paper &paper : papers) {
+        if (isDisplayablePaper(paper)) {
+            displayPapers.push_back(paper);
+        }
+    }
+
     m_table->setRowCount(0);
     configureTableForMode(MainContentMode::Papers);
-    m_table->setRowCount(static_cast<int>(papers.size()));
-    for (int row = 0; row < static_cast<int>(papers.size()); ++row) {
-        const Paper &paper = papers[static_cast<size_t>(row)];
+    m_table->setRowCount(static_cast<int>(displayPapers.size()));
+    for (int row = 0; row < static_cast<int>(displayPapers.size()); ++row) {
+        const Paper &paper = displayPapers[static_cast<size_t>(row)];
         auto *titleItem = new QTableWidgetItem(QString::fromStdString(paper.getTitle()));
         titleItem->setData(kRolePaperId, static_cast<qint64>(paper.getId()));
         m_table->setItem(row, 0, titleItem);
@@ -1587,6 +1644,8 @@ void MainWindow::onAddPaper()
 {
     PaperDialog dialog(this);
     dialog.setWindowTitle(QStringLiteral("上传/新增文献"));
+    dialog.setOnlineMetadataLookupEnabled(
+        m_onlineMetadataAction ? m_onlineMetadataAction->isChecked() : true);
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
@@ -1662,6 +1721,8 @@ void MainWindow::onEditPaper()
 
     PaperDialog dialog(this);
     dialog.setWindowTitle(QStringLiteral("编辑文献"));
+    dialog.setOnlineMetadataLookupEnabled(
+        m_onlineMetadataAction ? m_onlineMetadataAction->isChecked() : true);
     dialog.setPaper(*paper);
     connect(&dialog, &PaperDialog::attachmentsChanged, this,
             [this](IdType changedPaperId, int uploadedCount) {

@@ -10,8 +10,8 @@ set(CMAKE_AUTOMOC_COMPILER_PREDEFINES OFF)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
 find_package(ZLIB QUIET)
 
 set(PROJECT_SOURCES
@@ -38,6 +38,8 @@ set(PROJECT_SOURCES
         src/core/Attachment.cpp
         src/core/AttachmentFileUtils.h
         src/core/AttachmentFileUtils.cpp
+        src/core/OnlineMetadataService.h
+        src/core/OnlineMetadataService.cpp
         src/core/Paper.h
         src/core/Paper.cpp
         src/core/Catalog.h
@@ -63,6 +65,8 @@ set(PROJECT_SOURCES
         src/dialogs/sourcedialog.cpp
         src/dialogs/paperdialog.h
         src/dialogs/paperdialog.cpp
+        src/dialogs/pdfimportpreviewdialog.h
+        src/dialogs/pdfimportpreviewdialog.cpp
         src/dialogs/attachmentdialog.h
         src/dialogs/attachmentdialog.cpp
         src/dialogs/catalogdialog.h
@@ -99,7 +103,7 @@ else()
     endif()
 endif()
 
-target_link_libraries(ui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(ui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
 if(ZLIB_FOUND)
     target_link_libraries(ui PRIVATE ZLIB::ZLIB)
 elseif(MINGW)

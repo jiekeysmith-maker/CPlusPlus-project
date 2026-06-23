@@ -193,6 +193,7 @@ private:
     QAction *m_saveAction = nullptr;
     QAction *m_loadAction = nullptr;
     QAction *m_importAction = nullptr;
+    QAction *m_onlineMetadataAction = nullptr;
     QPushButton *m_viewDetailButton = nullptr;
     QPushButton *m_searchButton = nullptr;
     QPushButton *m_showAllButton = nullptr;
