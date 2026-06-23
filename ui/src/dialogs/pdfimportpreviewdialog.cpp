@@ -55,7 +55,7 @@ PdfImportPreviewDialog::PdfImportPreviewDialog(QWidget *parent)
 
     auto *mainLayout = new QVBoxLayout(this);
 
-    auto *tipLabel = new QLabel(QStringLiteral("以下内容由系统自动识别生成，可能不完全准确。联网状态下会优先使用在线元数据；离线或查询失败时使用本地 PDF 解析结果。请确认后再导入。"));
+    auto *tipLabel = new QLabel(QStringLiteral("以下内容由系统自动识别生成，可能不完全准确。启用在线元数据查询且本地信息不足时，系统才会尝试联网补全；关闭时仅使用本地 PDF 解析。请确认后再导入。"));
     tipLabel->setWordWrap(true);
     mainLayout->addWidget(tipLabel);
 

@@ -16,6 +16,7 @@ class QPushButton;
 
 struct PdfMetadata
 {
+    QString fileName;
     QString doi;
     QString title;
     QString author;
@@ -60,6 +61,20 @@ struct PdfMetadata
     }
 };
 
+struct LocalMetadataQuality
+{
+    bool highlyReliable = false;
+    QString reason;
+    int score = 0;
+
+    bool hasPdfTitle = false;
+    bool hasPdfAuthor = false;
+    bool hasVenueOrSubject = false;
+    bool hasPublicationDate = false;
+    bool hasCleanTitle = false;
+    bool hasCleanAuthors = false;
+};
+
 class PaperDialog : public QDialog
 {
     Q_OBJECT
@@ -68,6 +83,8 @@ public:
 
     Paper getPaper() const;
     void setPaper(const Paper &p);
+    void setOnlineMetadataLookupEnabled(bool enabled);
+    bool onlineMetadataLookupEnabled() const;
 
 signals:
     void attachmentsChanged(IdType paperId, int uploadedCount);
@@ -85,6 +102,7 @@ private:
     void setupUi();
     PdfMetadata extractPdfMetadata(const QString &filePath) const;
     void applyPdfMetadata(const PdfMetadata &metadata);
+    static LocalMetadataQuality evaluateLocalMetadataQuality(const PdfMetadata &metadata);
     static QString decodePdfLiteralString(const QString &value);
     static QByteArray decodePdfLiteralBytes(const QString &value);
     static QString decodePdfHexString(const QString &value);
@@ -145,6 +163,7 @@ private:
     IdType              m_selectedSourceId;
     IdType              m_currentPaperId = INVALID_ID;
     std::vector<IdType> m_selectedAttachmentIds;
+    bool                m_onlineMetadataLookupEnabled = true;
 };
 
 #endif // PAPERDIALOG_H

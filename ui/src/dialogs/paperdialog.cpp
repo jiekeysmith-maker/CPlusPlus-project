@@ -25,7 +25,6 @@
 #include <QCoreApplication>
 #include <QProcess>
 #include <QRegularExpression>
-#include <QSettings>
 #include <QSet>
 #include <QVector>
 
@@ -259,12 +258,6 @@ bool looksLikeAuthorNoise(const QString &value)
     return false;
 }
 
-bool onlineMetadataLookupEnabled()
-{
-    QSettings settings;
-    return settings.value(QStringLiteral("metadata/onlineLookupEnabled"), true).toBool();
-}
-
 QString joinOnlineAuthors(const QStringList &authors)
 {
     QStringList cleaned;
@@ -292,11 +285,105 @@ void appendRemarkLine(QString &remark, const QString &line)
     remark += cleanLine;
 }
 
+bool sourceMentionsPdfMetadata(const QString &source)
+{
+    return source.contains(QStringLiteral("PDF"), Qt::CaseInsensitive)
+        && source.contains(QStringLiteral("元数据"));
+}
+
+bool containsLocalTitleNoise(const QString &value)
+{
+    const QString text = value.simplified();
+    if (text.contains(QLatin1Char('_'))
+        || text.endsWith(QStringLiteral(".pdf"), Qt::CaseInsensitive)) {
+        return true;
+    }
+
+    const QString lower = text.toLower();
+    static const QStringList noisePhrases = {
+        QStringLiteral("references"),
+        QStringLiteral("abstract"),
+        QStringLiteral("introduction"),
+        QStringLiteral("published as"),
+        QStringLiteral("copyright"),
+        QStringLiteral("arxiv"),
+        QStringLiteral("open access"),
+        QStringLiteral("cvf open access"),
+        QStringLiteral("computer vision foundation")
+    };
+    for (const QString &phrase : noisePhrases) {
+        if (lower.contains(phrase)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool containsLocalAuthorNoise(const QString &value)
+{
+    const QString lower = value.simplified().toLower();
+    static const QStringList noisePhrases = {
+        QStringLiteral("university"),
+        QStringLiteral("institute"),
+        QStringLiteral("department"),
+        QStringLiteral("abstract"),
+        QStringLiteral("keywords"),
+        QStringLiteral("figure"),
+        QStringLiteral("table"),
+        QStringLiteral("references"),
+        QStringLiteral("introduction"),
+        QStringLiteral("copyright"),
+        QStringLiteral("arxiv")
+    };
+    for (const QString &phrase : noisePhrases) {
+        if (lower.contains(phrase)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool containsKnownPublicationSignal(const QString &value)
+{
+    const QString text = value.simplified();
+    if (text.isEmpty()) {
+        return false;
+    }
+
+    static const QRegularExpression publicationRe(
+        QStringLiteral(R"((ieee\s+international\s+conference\s+on\s+computer\s+vision|computer\s+vision\s+foundation|(^|[^a-z0-9])(cvf|iccv|cvpr|eccv|aaai|iclr|icml|neurips|nips|ijcai|journal|transactions)(?=$|[^a-z0-9])))"),
+        QRegularExpression::CaseInsensitiveOption);
+    return publicationRe.match(text).hasMatch();
+}
+
+bool hasExactOnlineLookupClue(const PdfMetadata &metadata)
+{
+    return !metadata.doi.trimmed().isEmpty()
+        || !metadata.arxivId.trimmed().isEmpty();
+}
+
 bool hasOnlineLookupClue(const PdfMetadata &metadata)
 {
     return !metadata.doi.trimmed().isEmpty()
         || !metadata.arxivId.trimmed().isEmpty()
         || (metadata.titleCanUseForOnlineSearch && metadata.title.simplified().size() >= 5);
+}
+
+OnlineMetadataService::LookupResult lookupOnlineMetadataExactOnly(const PdfMetadata &localMetadata)
+{
+    if (!localMetadata.arxivId.trimmed().isEmpty()) {
+        qDebug() << "[PDF metadata] online exact lookup: arXiv";
+        return OnlineMetadataService::lookupByArxivId(localMetadata.arxivId);
+    }
+    if (!localMetadata.doi.trimmed().isEmpty()) {
+        qDebug() << "[PDF metadata] online exact lookup: DOI";
+        return OnlineMetadataService::lookupByDoi(localMetadata.doi);
+    }
+
+    OnlineMetadataService::LookupResult result;
+    result.success = false;
+    result.errorMessage = QStringLiteral("本地解析未得到 DOI 或 arXiv ID");
+    return result;
 }
 
 OnlineMetadataService::LookupResult lookupOnlineMetadata(const PdfMetadata &localMetadata)
@@ -319,6 +406,54 @@ OnlineMetadataService::LookupResult lookupOnlineMetadata(const PdfMetadata &loca
     result.errorMessage = QStringLiteral("本地解析未得到 DOI、arXiv ID 或可信标题候选");
     qDebug() << "[PDF metadata] online lookup: none";
     return result;
+}
+
+QString highConfidenceSummary(const LocalMetadataQuality &quality, const QString &lookupNote = QString())
+{
+    QStringList summary;
+    summary << QStringLiteral("PDF 自带元数据，高可信度");
+    summary << (lookupNote.trimmed().isEmpty()
+        ? QStringLiteral("PDF 自带元数据完整，本次直接使用本地识别结果，未执行联网查询。")
+        : lookupNote.trimmed());
+    summary << QStringLiteral("验证说明：PDF 标题、作者、会议/主题信息完整，已跳过在线标题搜索。");
+    if (!quality.reason.trimmed().isEmpty()) {
+        summary << QStringLiteral("质量评估：%1").arg(quality.reason.trimmed());
+    }
+    return summary.join(QStringLiteral("\n"));
+}
+
+PdfMetadata localHighConfidenceMetadata(PdfMetadata metadata,
+                                        const LocalMetadataQuality &quality,
+                                        const QString &lookupNote = QString())
+{
+    metadata.metadataSource = QStringLiteral("LocalHighConfidence");
+    const QString summary = highConfidenceSummary(quality, lookupNote);
+    metadata.confidenceSummary = metadata.parserWarning.isEmpty()
+        ? summary
+        : QStringLiteral("%1\n%2").arg(metadata.parserWarning, summary);
+
+    if (quality.hasPdfTitle && !metadata.title.isEmpty()) {
+        metadata.titleSource = QStringLiteral("标题来源：PDF /Title 元数据，高可信度");
+    }
+    if (quality.hasPdfAuthor && !metadata.author.isEmpty()) {
+        metadata.authorSource = QStringLiteral("作者来源：PDF /Author 元数据，高可信度");
+    }
+    if (quality.hasVenueOrSubject) {
+        const QString sourceText = QStringLiteral("出版物来源：PDF /Subject 或首页会议文本，中/高可信度");
+        if (metadata.publicationSuggestion.isEmpty() && !metadata.issue.isEmpty()) {
+            metadata.publicationSuggestion = metadata.issue;
+        }
+        if (!metadata.issue.isEmpty()) {
+            metadata.issueSource = sourceText;
+        }
+        if (!metadata.subject.isEmpty()) {
+            metadata.subjectSource = sourceText;
+        }
+        if (!metadata.publicationSuggestion.isEmpty()) {
+            metadata.publicationSuggestionSource = sourceText;
+        }
+    }
+    return metadata;
 }
 
 QString confidenceTextForOnlineResult(const OnlineMetadataService::LookupResult &online)
@@ -355,7 +490,9 @@ PdfMetadata localMetadataWithSummary(PdfMetadata metadata, const QString &summar
     return metadata;
 }
 
-PdfMetadata mergeMetadata(const PdfMetadata &localMetadata, const OnlineMetadataService::LookupResult &online)
+PdfMetadata mergeMetadata(const PdfMetadata &localMetadata,
+                          const OnlineMetadataService::LookupResult &online,
+                          bool protectLocalHighConfidence = false)
 {
     if (!online.success) {
         return localMetadataWithSummary(localMetadata,
@@ -364,6 +501,8 @@ PdfMetadata mergeMetadata(const PdfMetadata &localMetadata, const OnlineMetadata
 
     PdfMetadata merged = localMetadata;
     const QString confidence = confidenceTextForOnlineResult(online);
+    const bool titleSearchResult = online.sourceName == QStringLiteral("Crossref title search");
+    const bool keepLocalIdentityFields = protectLocalHighConfidence && titleSearchResult;
     merged.metadataSource = online.sourceName == QStringLiteral("Crossref title search")
         ? QStringLiteral("Mixed")
         : online.sourceName;
@@ -379,15 +518,15 @@ PdfMetadata mergeMetadata(const PdfMetadata &localMetadata, const OnlineMetadata
         merged.arxivId = online.arxivId.trimmed();
         merged.arxivSource = confidence;
     }
-    if (!online.title.trimmed().isEmpty()) {
+    if (!keepLocalIdentityFields && !online.title.trimmed().isEmpty()) {
         merged.title = online.title.simplified();
         merged.titleSource = confidence;
     }
-    if (!online.authors.isEmpty()) {
+    if (!keepLocalIdentityFields && !online.authors.isEmpty()) {
         merged.author = joinOnlineAuthors(online.authors);
         merged.authorSource = confidence;
     }
-    if (!online.abstractText.trimmed().isEmpty()) {
+    if (!keepLocalIdentityFields && !online.abstractText.trimmed().isEmpty()) {
         merged.abstract = online.abstractText.simplified();
         merged.abstractSource = confidence;
     }
@@ -586,6 +725,16 @@ PaperDialog::PaperDialog(QWidget *parent)
     setupUi();
     setModal(true);
     setMinimumSize(600, 550);
+}
+
+void PaperDialog::setOnlineMetadataLookupEnabled(bool enabled)
+{
+    m_onlineMetadataLookupEnabled = enabled;
+}
+
+bool PaperDialog::onlineMetadataLookupEnabled() const
+{
+    return m_onlineMetadataLookupEnabled;
 }
 
 void PaperDialog::setupUi()
@@ -791,8 +940,58 @@ void PaperDialog::onSelectFile()
     if (info.suffix().compare(QStringLiteral("pdf"), Qt::CaseInsensitive) == 0) {
         PdfMetadata metadata = extractPdfMetadata(targetPath);
         if (metadata.isValid()) {
-            if (onlineMetadataLookupEnabled()) {
+            const LocalMetadataQuality quality = evaluateLocalMetadataQuality(metadata);
+            qDebug() << "[PDF metadata] local high confidence:" << quality.highlyReliable << quality.reason;
+            qDebug() << "[PDF metadata] skip online lookup:" << quality.highlyReliable;
+            qDebug() << "[PDF metadata] local title source:" << metadata.titleSource;
+            qDebug() << "[PDF metadata] local author source:" << metadata.authorSource;
+
+            const bool onlineLookupEnabled = this->onlineMetadataLookupEnabled();
+            qDebug() << "[PDF metadata] online enabled in dialog:" << m_onlineMetadataLookupEnabled;
+            if (!onlineLookupEnabled) {
+                metadata = localMetadataWithSummary(metadata,
+                    QStringLiteral("本地 PDF 解析\n当前已关闭在线元数据查询，以下结果来自本地 PDF 解析。"));
+                qDebug() << "[PDF metadata] online lookup disabled, using local metadata only";
+            } else if (quality.highlyReliable) {
+                if (hasExactOnlineLookupClue(metadata)) {
+                    qDebug() << "[PDF metadata] local high confidence exact lookup allowed";
+                    qDebug() << "[PDF metadata] start online lookup";
+                    QProgressDialog progress(
+                        QStringLiteral("正在查询 DOI / arXiv 精确元数据..."),
+                        QStringLiteral("等待超时"),
+                        0,
+                        0,
+                        this);
+                    progress.setWindowModality(Qt::WindowModal);
+                    progress.setMinimumDuration(0);
+                    progress.show();
+                    QApplication::processEvents();
+
+                    const OnlineMetadataService::LookupResult online = lookupOnlineMetadataExactOnly(metadata);
+                    qDebug() << "[PDF metadata] online exact lookup result:"
+                             << online.sourceName << online.success << online.errorMessage;
+                    progress.close();
+                    if (online.success) {
+                        metadata = mergeMetadata(metadata, online, true);
+                        metadata.metadataSource = QStringLiteral("LocalHighConfidenceExactOnline");
+                        const QString summary = highConfidenceSummary(quality,
+                            QStringLiteral("PDF 自带元数据完整；已执行 DOI/arXiv 精确查询补全，未执行在线标题搜索。"));
+                        metadata.confidenceSummary = metadata.parserWarning.isEmpty()
+                            ? summary
+                            : QStringLiteral("%1\n%2").arg(metadata.parserWarning, summary);
+                        qDebug() << "[PDF metadata] merged title:" << metadata.title;
+                        qDebug() << "[PDF metadata] merged authors:" << metadata.author;
+                    } else {
+                        metadata = localHighConfidenceMetadata(metadata, quality,
+                            QStringLiteral("PDF 自带元数据完整；DOI/arXiv 精确查询失败，已继续使用本地识别结果，未执行在线标题搜索。"));
+                    }
+                } else {
+                    metadata = localHighConfidenceMetadata(metadata, quality);
+                    qDebug() << "[PDF metadata] online lookup skipped: local high confidence";
+                }
+            } else if (onlineLookupEnabled) {
                 if (hasOnlineLookupClue(metadata)) {
+                    qDebug() << "[PDF metadata] start online lookup";
                     QProgressDialog progress(
                         QStringLiteral("正在查询在线元数据..."),
                         QStringLiteral("等待超时"),
@@ -816,10 +1015,6 @@ void PaperDialog::onSelectFile()
                         QStringLiteral("本地 PDF 解析未得到 DOI、arXiv ID 或可信标题候选，已使用本地结果。"));
                     qDebug() << "[PDF metadata] online lookup skipped: no clue";
                 }
-            } else {
-                metadata = localMetadataWithSummary(metadata,
-                    QStringLiteral("当前已关闭在线元数据查询，以下结果来自本地 PDF 解析。"));
-                qDebug() << "[PDF metadata] online lookup disabled";
             }
 
             PdfImportPreviewDialog preview(this);
@@ -2152,6 +2347,84 @@ QStringList PaperDialog::splitAuthorNames(const QString &value)
     return result;
 }
 
+LocalMetadataQuality PaperDialog::evaluateLocalMetadataQuality(const PdfMetadata &metadata)
+{
+    LocalMetadataQuality quality;
+
+    const QString title = metadata.title.simplified();
+    const QStringList authors = splitAuthorNames(metadata.author);
+    const QString publicationContext = QStringList{
+        metadata.subject,
+        metadata.issue,
+        metadata.publicationSuggestion,
+        metadata.fileName,
+        metadata.rawText.left(2000)
+    }.join(QStringLiteral("\n"));
+
+    quality.hasPdfTitle = sourceMentionsPdfMetadata(metadata.titleSource) && !title.isEmpty();
+    quality.hasPdfAuthor = sourceMentionsPdfMetadata(metadata.authorSource) && !authors.isEmpty();
+    quality.hasCleanTitle = !title.isEmpty()
+        && title.size() <= 220
+        && !isWeakPdfTitle(title)
+        && !containsLocalTitleNoise(title);
+    quality.hasCleanAuthors = authors.size() >= 2
+        && !containsLocalAuthorNoise(metadata.author);
+    quality.hasVenueOrSubject = containsKnownPublicationSignal(publicationContext);
+    quality.hasPublicationDate = !metadata.publicationDate.trimmed().isEmpty();
+
+    if (quality.hasPdfTitle) {
+        quality.score += 25;
+    }
+    if (quality.hasCleanTitle) {
+        quality.score += 20;
+    }
+    if (quality.hasPdfAuthor) {
+        quality.score += 25;
+    }
+    if (quality.hasCleanAuthors) {
+        quality.score += 20;
+    }
+    if (quality.hasVenueOrSubject) {
+        quality.score += 20;
+    }
+    if (quality.hasPublicationDate) {
+        quality.score += 5;
+    }
+
+    quality.highlyReliable = quality.hasPdfTitle
+        && quality.hasPdfAuthor
+        && quality.hasCleanTitle
+        && quality.hasCleanAuthors
+        && quality.hasVenueOrSubject
+        && quality.score >= 90;
+
+    QStringList details;
+    details << QStringLiteral("score=%1").arg(quality.score);
+    if (quality.highlyReliable) {
+        details << QStringLiteral("PDF /Title、/Author 与会议/主题信息完整");
+    } else {
+        QStringList missing;
+        if (!quality.hasPdfTitle) {
+            missing << QStringLiteral("缺少 PDF /Title 高可信来源");
+        }
+        if (!quality.hasCleanTitle) {
+            missing << QStringLiteral("标题不够干净");
+        }
+        if (!quality.hasPdfAuthor) {
+            missing << QStringLiteral("缺少 PDF /Author 高可信来源");
+        }
+        if (!quality.hasCleanAuthors) {
+            missing << QStringLiteral("作者不足或含噪声");
+        }
+        if (!quality.hasVenueOrSubject) {
+            missing << QStringLiteral("缺少会议/期刊/主题信号");
+        }
+        details << missing.join(QStringLiteral("；"));
+    }
+    quality.reason = details.join(QStringLiteral("；"));
+    return quality;
+}
+
 IdType PaperDialog::findOrCreateAuthor(const QString &name) const
 {
     const QString trimmed = name.simplified();
@@ -2221,6 +2494,7 @@ QString PaperDialog::firstNonEmpty(const QStringList &values)
 PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
 {
     PdfMetadata meta;
+    meta.fileName = QFileInfo(filePath).fileName();
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
         return meta;
@@ -2280,9 +2554,9 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
     const QString pdfTitle = collapseSpacedInitialCaps(takeMatch(
         QRegularExpression(QStringLiteral(R"(/Title\s*(\((?:\\.|[^\\()])*\)|<[^>]+>))"),
             QRegularExpression::DotMatchesEverythingOption)));
-    if (meta.title.isEmpty() && !isWeakPdfTitle(pdfTitle)) {
+    if (!isWeakPdfTitle(pdfTitle)) {
         meta.title = pdfTitle;
-        meta.titleSource = QStringLiteral("来自 PDF 元数据，高可信度");
+        meta.titleSource = QStringLiteral("来自 PDF /Title 元数据，高可信度");
         meta.titleCanUseForOnlineSearch = true;
     }
 
@@ -2297,16 +2571,17 @@ PdfMetadata PaperDialog::extractPdfMetadata(const QString &filePath) const
     const QString pdfAuthor = takeMatch(
         QRegularExpression(QStringLiteral(R"(/Author\s*(\((?:\\.|[^\\()])*\)|<[^>]+>))"),
             QRegularExpression::DotMatchesEverythingOption));
-    if (meta.author.isEmpty() && !splitAuthorNames(pdfAuthor).isEmpty()) {
-        meta.author = splitAuthorNames(pdfAuthor).join(QStringLiteral("; "));
-        meta.authorSource = QStringLiteral("来自 PDF 元数据，高可信度，仍需确认");
+    const QStringList pdfAuthors = splitAuthorNames(pdfAuthor);
+    if (pdfAuthors.size() >= 2 || (meta.author.isEmpty() && !pdfAuthors.isEmpty())) {
+        meta.author = pdfAuthors.join(QStringLiteral("; "));
+        meta.authorSource = QStringLiteral("来自 PDF /Author 元数据，高可信度");
     }
 
     meta.subject = takeMatch(
         QRegularExpression(QStringLiteral(R"(/Subject\s*(\((?:\\.|[^\\()])*\)|<[^>]+>))"),
             QRegularExpression::DotMatchesEverythingOption));
     if (!meta.subject.isEmpty()) {
-        meta.subjectSource = QStringLiteral("来自 PDF 主题元数据，低可信度，请检查");
+        meta.subjectSource = QStringLiteral("来自 PDF /Subject 元数据，需结合标题作者确认");
     }
 
     const QString pdfKeywords = takeMatch(

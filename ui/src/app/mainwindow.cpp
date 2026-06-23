@@ -273,11 +273,28 @@ void MainWindow::setupMenuBar()
     m_onlineMetadataAction = toolsMenu->addAction(QStringLiteral("启用在线元数据查询"));
     m_onlineMetadataAction->setCheckable(true);
     QSettings settings;
-    m_onlineMetadataAction->setChecked(
-        settings.value(QStringLiteral("metadata/onlineLookupEnabled"), true).toBool());
+    auto updateOnlineMetadataTooltip = [this](bool enabled) {
+        if (!m_onlineMetadataAction) {
+            return;
+        }
+        const QString tip = enabled
+            ? QStringLiteral("在线元数据查询已开启")
+            : QStringLiteral("在线元数据查询已关闭，仅使用本地 PDF 解析");
+        m_onlineMetadataAction->setToolTip(tip);
+        m_onlineMetadataAction->setStatusTip(tip);
+    };
+    const bool onlineMetadataEnabled =
+        settings.value(QStringLiteral("metadata/onlineLookupEnabled"), true).toBool();
+    m_onlineMetadataAction->setChecked(onlineMetadataEnabled);
+    updateOnlineMetadataTooltip(onlineMetadataEnabled);
     connect(m_onlineMetadataAction, &QAction::toggled, this, [this](bool enabled) {
         QSettings settings;
         settings.setValue(QStringLiteral("metadata/onlineLookupEnabled"), enabled);
+        settings.sync();
+        m_onlineMetadataAction->setToolTip(enabled
+            ? QStringLiteral("在线元数据查询已开启")
+            : QStringLiteral("在线元数据查询已关闭，仅使用本地 PDF 解析"));
+        m_onlineMetadataAction->setStatusTip(m_onlineMetadataAction->toolTip());
         showStatus(enabled
             ? QStringLiteral("已启用在线元数据查询")
             : QStringLiteral("已关闭在线元数据查询，将只使用本地 PDF 解析"));
@@ -1655,6 +1672,8 @@ void MainWindow::onAddPaper()
 {
     PaperDialog dialog(this);
     dialog.setWindowTitle(QStringLiteral("上传/新增文献"));
+    dialog.setOnlineMetadataLookupEnabled(
+        m_onlineMetadataAction ? m_onlineMetadataAction->isChecked() : true);
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
@@ -1730,6 +1749,8 @@ void MainWindow::onEditPaper()
 
     PaperDialog dialog(this);
     dialog.setWindowTitle(QStringLiteral("编辑文献"));
+    dialog.setOnlineMetadataLookupEnabled(
+        m_onlineMetadataAction ? m_onlineMetadataAction->isChecked() : true);
     dialog.setPaper(*paper);
     connect(&dialog, &PaperDialog::attachmentsChanged, this,
             [this](IdType changedPaperId, int uploadedCount) {
