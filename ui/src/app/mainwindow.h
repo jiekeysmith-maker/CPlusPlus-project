@@ -128,7 +128,7 @@ private:
     IdType selectedAuthorId() const;
     std::vector<IdType> selectedPaperIds() const;
     std::vector<IdType> selectedAuthorIds() const;
-    void adjustAuthorColumnWidth();
+    void configureTableForMode(MainContentMode mode);
     bool isUserCatalogNode(const QTreeWidgetItem *item) const;
     bool isUserAuthorCatalogNode(const QTreeWidgetItem *item) const;
     bool isSystemNode(const QTreeWidgetItem *item) const;
@@ -183,6 +183,7 @@ private:
     QString m_defaultDataPath;
     QString m_currentNodeKey;
     MainContentMode m_contentMode = MainContentMode::Papers;
+    MainContentMode m_lastConfiguredTableMode = MainContentMode::Papers;
     IdType m_detailPaperId = INVALID_ID;
     IdType m_detailAuthorId = INVALID_ID;
     QAction *m_addPaperAction = nullptr;

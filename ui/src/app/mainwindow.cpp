@@ -182,12 +182,13 @@ void MainWindow::setupUi()
     m_table->setDragDropMode(QAbstractItemView::DragOnly);
     m_table->setAlternatingRowColors(true);
     m_table->horizontalHeader()->setStretchLastSection(false);
-    m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-    m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Interactive);
-    m_table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    m_table->setColumnWidth(0, 280);
+    m_table->setColumnWidth(1, 160);
+    m_table->setColumnWidth(2, 120);
+    m_table->setColumnWidth(3, 140);
+    m_table->setColumnWidth(4, 140);
+    m_table->setColumnWidth(5, 100);
     m_table->verticalHeader()->setVisible(false);
     m_table->setWordWrap(false);
 
@@ -899,25 +900,7 @@ std::vector<Author> MainWindow::filterAuthors(const std::vector<Author> &authors
 void MainWindow::updatePaperTable(const std::vector<Paper> &papers)
 {
     m_table->setRowCount(0);
-    m_table->clear();
-    m_table->setColumnCount(6);
-    m_table->setHorizontalHeaderLabels({
-        QStringLiteral("标题"),
-        QStringLiteral("关键词"),
-        QStringLiteral("发表时间"),
-        QStringLiteral("作者"),
-        QStringLiteral("上传时间"),
-        QStringLiteral("全文附件")
-    });
-    m_table->setDragEnabled(true);
-    m_table->setDragDropMode(QAbstractItemView::DragOnly);
-    m_table->horizontalHeader()->setStretchLastSection(false);
-    m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-    m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Interactive);
-    m_table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
+    configureTableForMode(MainContentMode::Papers);
     m_table->setRowCount(static_cast<int>(papers.size()));
     for (int row = 0; row < static_cast<int>(papers.size()); ++row) {
         const Paper &paper = papers[static_cast<size_t>(row)];
@@ -925,9 +908,15 @@ void MainWindow::updatePaperTable(const std::vector<Paper> &papers)
         titleItem->setData(kRolePaperId, static_cast<qint64>(paper.getId()));
         m_table->setItem(row, 0, titleItem);
         m_table->setItem(row, 1, new QTableWidgetItem(paperKeywordsText(paper)));
-        m_table->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(paper.getPublishDate())));
-        m_table->setItem(row, 3, new QTableWidgetItem(paperAuthorsText(paper)));
-        m_table->setItem(row, 4, new QTableWidgetItem(paperUploadTimeText(paper)));
+        auto *dateItem = new QTableWidgetItem(QString::fromStdString(paper.getPublishDate()));
+        dateItem->setTextAlignment(Qt::AlignCenter);
+        m_table->setItem(row, 2, dateItem);
+        auto *authorItem = new QTableWidgetItem(paperAuthorsText(paper));
+        authorItem->setToolTip(authorItem->text());
+        m_table->setItem(row, 3, authorItem);
+        auto *uploadTimeItem = new QTableWidgetItem(paperUploadTimeText(paper));
+        uploadTimeItem->setTextAlignment(Qt::AlignCenter);
+        m_table->setItem(row, 4, uploadTimeItem);
 
         auto *openButton = new QPushButton(paperCatalogText(paper), m_table);
         openButton->setEnabled(!paper.getFilePath().empty());
@@ -944,30 +933,13 @@ void MainWindow::updatePaperTable(const std::vector<Paper> &papers)
         m_table->setCellWidget(row, 5, openButton);
     }
     m_table->resizeRowsToContents();
-    adjustAuthorColumnWidth();
     onPaperSelectionChanged();
 }
 
 void MainWindow::updateAuthorTable(const std::vector<Author> &authors)
 {
     m_table->setRowCount(0);
-    m_table->clear();
-    m_table->setColumnCount(5);
-    m_table->setHorizontalHeaderLabels({
-        QStringLiteral("姓名"),
-        QStringLiteral("性别"),
-        QStringLiteral("单位"),
-        QStringLiteral("Email"),
-        QStringLiteral("研究领域")
-    });
-    m_table->setDragEnabled(false);
-    m_table->setDragDropMode(QAbstractItemView::NoDragDrop);
-    m_table->horizontalHeader()->setStretchLastSection(false);
-    m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
-    m_table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
+    configureTableForMode(MainContentMode::Authors);
     m_table->setRowCount(static_cast<int>(authors.size()));
 
     for (int row = 0; row < static_cast<int>(authors.size()); ++row) {
@@ -2296,22 +2268,51 @@ bool MainWindow::moveSelectedPaperToCatalog(IdType catalogId)
     return true;
 }
 
-void MainWindow::adjustAuthorColumnWidth()
+void MainWindow::configureTableForMode(MainContentMode mode)
 {
-    if (!m_table) {
+    if (!m_table || mode == m_lastConfiguredTableMode) {
         return;
     }
+    m_lastConfiguredTableMode = mode;
 
-    const QFontMetrics fm(m_table->font());
-    const int maxWidth = fm.horizontalAdvance(QString(30, QLatin1Char('M'))) + 28;
-    int targetWidth = fm.horizontalAdvance(QStringLiteral("作者")) + 36;
-    for (int row = 0; row < m_table->rowCount(); ++row) {
-        if (QTableWidgetItem *item = m_table->item(row, 3)) {
-            item->setToolTip(item->text());
-            targetWidth = std::max(targetWidth, fm.horizontalAdvance(item->text()) + 28);
-        }
+    if (mode == MainContentMode::Authors) {
+        m_table->setColumnCount(5);
+        m_table->setHorizontalHeaderLabels({
+            QStringLiteral("姓名"),
+            QStringLiteral("性别"),
+            QStringLiteral("单位"),
+            QStringLiteral("Email"),
+            QStringLiteral("研究领域")
+        });
+        m_table->setDragEnabled(false);
+        m_table->setDragDropMode(QAbstractItemView::NoDragDrop);
+        m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+        m_table->setColumnWidth(0, 120);
+        m_table->setColumnWidth(1, 60);
+        m_table->setColumnWidth(2, 200);
+        m_table->setColumnWidth(3, 180);
+        m_table->setColumnWidth(4, 200);
+    } else {
+        m_table->setColumnCount(6);
+        m_table->setHorizontalHeaderLabels({
+            QStringLiteral("标题"),
+            QStringLiteral("关键词"),
+            QStringLiteral("发表时间"),
+            QStringLiteral("作者"),
+            QStringLiteral("上传时间"),
+            QStringLiteral("全文附件")
+        });
+        m_table->setDragEnabled(true);
+        m_table->setDragDropMode(QAbstractItemView::DragOnly);
+        m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+        m_table->setColumnWidth(0, 280);
+        m_table->setColumnWidth(1, 160);
+        m_table->setColumnWidth(2, 120);
+        m_table->setColumnWidth(3, 140);
+        m_table->setColumnWidth(4, 140);
+        m_table->setColumnWidth(5, 100);
     }
-    m_table->setColumnWidth(3, std::min(targetWidth, maxWidth));
+    m_table->horizontalHeader()->setStretchLastSection(false);
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
