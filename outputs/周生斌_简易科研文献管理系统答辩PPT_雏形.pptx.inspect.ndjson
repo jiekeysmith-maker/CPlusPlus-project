@@ -1,0 +1,218 @@
+{"kind":"deck","id":"pr/c7u17p","name":"Deck"}
+{"kind":"layout","layoutId":"6556d592-f61a-4c02-8a10-08397f13b9f0","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"0449fa13-4ffe-4afc-a768-195504df51e6","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/moqf8o","slide":1,"title":"西北农林科技大学","textShapes":4}
+{"kind":"shape","id":"sh/oza1gvy9","slide":1,"bbox":[0,0,510,720]}
+{"kind":"shape","id":"sh/zed8v6ps","slide":1,"bbox":[0,0,510,18]}
+{"kind":"textbox","id":"sh/6xkf6dcb","slide":1,"text":"西北农林科技大学","textPreview":"西北农林科技大学","textChars":8,"textLines":1,"bbox":[62,66,380,30]}
+{"kind":"textbox","id":"sh/hwfyxobm","slide":1,"text":"简易科研文献\n管理系统设计与实现","textPreview":"简易科研文献 | 管理系统设计与实现","textChars":16,"textLines":2,"bbox":[62,168,390,150]}
+{"kind":"shape","id":"sh/obm58z25","slide":1,"bbox":[62,344,116,5]}
+{"kind":"textbox","id":"sh/zqtcj6to","slide":1,"text":"周生斌  ·  2025013531","textPreview":"周生斌  ·  2025013531","textChars":18,"textLines":1,"bbox":[62,382,390,36]}
+{"kind":"textbox","id":"sh/65wjudg7","slide":1,"text":"班级：计算机类2507\n指导教师：胡钰\n答辩时间：2026年6月","textPreview":"班级：计算机类2507 | 指导教师：胡钰 | 答辩时间：2026年6月","textChars":32,"textLines":3,"bbox":[62,432,380,100]}
+{"kind":"shape","id":"sh/h0fepkzu","slide":1,"bbox":[506,0,8,720]}
+{"kind":"image","id":"im/hgn29gr2","slide":1,"name":"","geometry":"rect","alt":"科研文献管理系统界面","bbox":[510,0,770,720]}
+{"kind":"notes","id":"nt/moqf8o","slide":1,"text":"各位老师好，我是周生斌。\n本次汇报的项目是简易科研文献管理系统设计与实现。\n汇报将从项目设计、个人负责部分、实现思路和项目总结四个方面展开。"}
+{"kind":"slide","id":"sl/guwdyj","slide":2,"title":"目录","textShapes":10}
+{"kind":"textbox","id":"sh/eloj2t83","slide":2,"text":"目录","textPreview":"目录","textChars":2,"textLines":1,"bbox":[70,68,180,62]}
+{"kind":"shape","id":"sh/lc7u54zi","slide":2,"bbox":[70,142,72,5]}
+{"kind":"textbox","id":"sh/wra5gbq1","slide":2,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[92,190,90,48]}
+{"kind":"textbox","id":"sh/7u54zido","slide":2,"text":"项目分析与模块设计","textPreview":"项目分析与模块设计","textChars":9,"textLines":1,"bbox":[210,194,620,44]}
+{"kind":"shape","id":"sh/ed8bat47","slide":2,"bbox":[210,248,760,1]}
+{"kind":"textbox","id":"sh/l0rqd4vm","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[92,292,90,48]}
+{"kind":"textbox","id":"sh/wfyxobm5","slide":2,"text":"个人负责部分分析","textPreview":"个人负责部分分析","textChars":8,"textLines":1,"bbox":[210,296,620,44]}
+{"kind":"shape","id":"sh/7mp0bi9s","slide":2,"bbox":[210,350,760,1]}
+{"kind":"textbox","id":"sh/e1w7mp0b","slide":2,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[92,394,90,48]}
+{"kind":"textbox","id":"sh/0rqd4vmt","slide":2,"text":"具体实现思路","textPreview":"具体实现思路","textChars":6,"textLines":1,"bbox":[210,398,620,44]}
+{"kind":"shape","id":"sh/tcj6tova","slide":2,"bbox":[210,452,760,1]}
+{"kind":"textbox","id":"sh/il0rqd4v","slide":2,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[92,496,90,48]}
+{"kind":"textbox","id":"sh/b6xkf6dc","slide":2,"text":"调试、优点与不足","textPreview":"调试、优点与不足","textChars":8,"textLines":1,"bbox":[210,500,620,44]}
+{"kind":"shape","id":"sh/0je9cvix","slide":2,"bbox":[210,554,760,1]}
+{"kind":"shape","id":"sh/t47y1kre","slide":2,"bbox":[1020,120,170,480]}
+{"kind":"textbox","id":"sh/idonyd0z","slide":2,"text":"OOP\nPRACTICE","textPreview":"OOP | PRACTICE","textChars":12,"textLines":2,"bbox":[1044,244,122,140]}
+{"kind":"notes","id":"nt/guwdyj","slide":2,"text":"目录分为四部分，与优秀答辩模板的叙事结构保持一致。"}
+{"kind":"slide","id":"sl/vq4o5w","slide":3,"title":"PART 01","textShapes":4}
+{"kind":"shape","id":"sh/qtcj6tov","slide":3,"bbox":[0,0,1280,18]}
+{"kind":"textbox","id":"sh/1gvy90je","slide":3,"text":"PART 01","textPreview":"PART 01","textChars":7,"textLines":1,"bbox":[74,176,310,62]}
+{"kind":"textbox","id":"sh/8z25kb6x","slide":3,"text":"项目分析与模块设计","textPreview":"项目分析与模块设计","textChars":9,"textLines":1,"bbox":[74,264,920,74]}
+{"kind":"shape","id":"sh/fmlkjm1c","slide":3,"bbox":[74,362,120,6]}
+{"kind":"textbox","id":"sh/q1orytsv","slide":3,"text":"项目背景、需求分析、总体架构与核心对象","textPreview":"项目背景、需求分析、总体架构与核心对象","textChars":19,"textLines":1,"bbox":[74,394,860,70]}
+{"kind":"textbox","id":"sh/xs72x4na","slide":3,"text":"NWAFU · C++ 面向对象综合训练","textPreview":"NWAFU · C++ 面向对象综合训练","textChars":20,"textLines":1,"bbox":[74,630,500,24]}
+{"kind":"notes","id":"nt/vq4o5w","slide":3,"text":"进入第1部分：项目分析与模块设计。"}
+{"kind":"slide","id":"sl/9ge7c6","slide":4,"title":"项目分析与模块设计","textShapes":13}
+{"kind":"shape","id":"sh/psfil0rq","slide":4,"bbox":[0,0,1280,10]}
+{"kind":"shape","id":"sh/e1w7mp0b","slide":4,"bbox":[44,34,214,40]}
+{"kind":"textbox","id":"sh/7mp0bi9s","slide":4,"text":"项目分析与模块设计","textPreview":"项目分析与模块设计","textChars":9,"textLines":1,"bbox":[60,42,185,24]}
+{"kind":"textbox","id":"sh/wval87ed","slide":4,"text":"西北农林科技大学","textPreview":"西北农林科技大学","textChars":8,"textLines":1,"bbox":[1010,42,210,24]}
+{"kind":"textbox","id":"sh/pg3ex0nu","slide":4,"text":"项目背景与目标","textPreview":"项目背景与目标","textChars":7,"textLines":1,"bbox":[56,92,1130,54]}
+{"kind":"shape","id":"sh/epkzupwb","slide":4,"bbox":[56,152,92,4]}
+{"kind":"textbox","id":"sh/7adsji5s","slide":4,"text":"西北农林科技大学 · 信息工程学院","textPreview":"西北农林科技大学 · 信息工程学院","textChars":17,"textLines":1,"bbox":[56,682,420,22]}
+{"kind":"textbox","id":"sh/wra5gbq1","slide":4,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[1178,680,48,22]}
+{"kind":"shape","id":"sh/lc7u54zi","slide":4,"bbox":[58,190,360,186]}
+{"kind":"shape","id":"sh/9w3m94fu","slide":4,"bbox":[58,190,8,186]}
+{"kind":"textbox","id":"sh/kb6xkf6d","slide":4,"text":"项目背景","textPreview":"项目背景","textChars":4,"textLines":1,"bbox":[84,210,314,34]}
+{"kind":"textbox","id":"sh/rqd4vmtw","slide":4,"text":"科研文献数量不断增加，人工记录容易出现信息分散、检索困难、文件与元数据脱节等问题。","textPreview":"科研文献数量不断增加，人工记录容易出现信息分散、检索困难、文件与元数据脱节等问题。","textChars":41,"textLines":1,"bbox":[84,256,312,104]}
+{"kind":"shape","id":"sh/25kb6xkf","slide":4,"bbox":[58,398,360,186]}
+{"kind":"shape","id":"sh/9knih4by","slide":4,"bbox":[58,398,8,186]}
+{"kind":"textbox","id":"sh/kzupwb2h","slide":4,"text":"项目目标","textPreview":"项目目标","textChars":4,"textLines":1,"bbox":[84,418,314,34]}
+{"kind":"textbox","id":"sh/re1w7mp0","slide":4,"text":"使用 C++17 与 Qt Widgets 构建桌面应用，统一管理文献、作者、出版物、附件和分类目录。","textPreview":"使用 C++17 与 Qt Widgets 构建桌面应用，统一管理文献、作者、出版物、附件和分类目录。","textChars":51,"textLines":1,"bbox":[84,464,312,104]}
+{"kind":"textbox","id":"sh/gvy90je9","slide":4,"text":"从“保存一篇文献”扩展到“管理文献关系网络”","textPreview":"从“保存一篇文献”扩展到“管理文献关系网络”","textChars":22,"textLines":1,"bbox":[456,472,310,80]}
+{"kind":"shape","id":"sh/wra5gbq1","slide":4,"bbox":[456,558,10,10]}
+{"kind":"textbox","id":"sh/lc7u54zi","slide":4,"text":"结构化保存文献及相关对象","textPreview":"结构化保存文献及相关对象","textChars":12,"textLines":1,"bbox":[480,550,296,32]}
+{"kind":"shape","id":"sh/eloj2t83","slide":4,"bbox":[456,592,10,10]}
+{"kind":"textbox","id":"sh/36hcrmhk","slide":4,"text":"支持目录、搜索和附件关联","textPreview":"支持目录、搜索和附件关联","textChars":12,"textLines":1,"bbox":[480,584,296,32]}
+{"kind":"shape","id":"sh/wfyxobm5","slide":4,"bbox":[456,626,10,10]}
+{"kind":"textbox","id":"sh/l0rqd4vm","slide":4,"text":"提供 PDF 元数据自动识别","textPreview":"提供 PDF 元数据自动识别","textChars":14,"textLines":1,"bbox":[480,618,296,32]}
+{"kind":"image","id":"im/l87ed8ba","slide":4,"name":"","geometry":"roundRect","alt":"系统主界面","bbox":[454,188,744,250]}
+{"kind":"image","id":"im/e9cvixcz","slide":4,"name":"","geometry":"roundRect","alt":"PDF 元数据识别","bbox":[790,454,408,205]}
+{"kind":"notes","id":"nt/9ge7c6","slide":4,"text":"项目解决的是科研文献分散管理的问题。\n目标不仅是保存文献条目，还要管理作者、来源、目录和附件之间的关系。"}
+{"kind":"slide","id":"sl/ia5pcb","slide":5,"title":"项目分析与模块设计","textShapes":8}
+{"kind":"shape","id":"sh/kzupwb2h","slide":5,"bbox":[0,0,1280,10]}
+{"kind":"shape","id":"sh/re1w7mp0","slide":5,"bbox":[44,34,214,40]}
+{"kind":"textbox","id":"sh/2t83itgf","slide":5,"text":"项目分析与模块设计","textPreview":"项目分析与模块设计","textChars":9,"textLines":1,"bbox":[60,42,185,24]}
+{"kind":"textbox","id":"sh/9w3m94fu","slide":5,"text":"西北农林科技大学","textPreview":"西北农林科技大学","textChars":8,"textLines":1,"bbox":[1010,42,210,24]}
+{"kind":"textbox","id":"sh/kb6xkf6d","slide":5,"text":"总体架构与模块划分","textPreview":"总体架构与模块划分","textChars":9,"textLines":1,"bbox":[56,92,1130,54]}
+{"kind":"shape","id":"sh/rqd4vmtw","slide":5,"bbox":[56,152,92,4]}
+{"kind":"textbox","id":"sh/25kb6xkf","slide":5,"text":"西北农林科技大学 · 信息工程学院","textPreview":"西北农林科技大学 · 信息工程学院","textChars":17,"textLines":1,"bbox":[56,682,420,22]}
+{"kind":"textbox","id":"sh/94fu18jq","slide":5,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1178,680,48,22]}
+{"kind":"textbox","id":"sh/mlkjm1cf","slide":5,"text":"UI 展示层","textPreview":"UI 展示层","textChars":6,"textLines":1,"bbox":[112,616,200,28]}
+{"kind":"textbox","id":"sh/f6dcbulw","slide":5,"text":"业务管理层","textPreview":"业务管理层","textChars":5,"textLines":1,"bbox":[526,616,210,28]}
+{"kind":"textbox","id":"sh/4r65wjud","slide":5,"text":"核心数据与持久化层","textPreview":"核心数据与持久化层","textChars":9,"textLines":1,"bbox":[884,616,260,28]}
+{"kind":"image","id":"im/twra5gbq","slide":5,"name":"","geometry":"roundRect","alt":"三层架构图","bbox":[68,180,1144,455]}
+{"kind":"notes","id":"nt/ia5pcb","slide":5,"text":"系统采用三层结构：界面展示、业务管理、核心数据与持久化。\nLibraryManager 是连接界面和实体对象的核心入口。"}
+{"kind":"slide","id":"sl/656kaw","slide":6,"title":"PART 02","textShapes":4}
+{"kind":"shape","id":"sh/sneloj2t","slide":6,"bbox":[0,0,1280,18]}
+{"kind":"textbox","id":"sh/32lszqtc","slide":6,"text":"PART 02","textPreview":"PART 02","textChars":7,"textLines":1,"bbox":[74,176,310,62]}
+{"kind":"textbox","id":"sh/ahoza1gv","slide":6,"text":"个人负责部分分析","textPreview":"个人负责部分分析","textChars":8,"textLines":1,"bbox":[74,264,920,74]}
+{"kind":"shape","id":"sh/lkjm1cfa","slide":6,"bbox":[74,362,120,6]}
+{"kind":"textbox","id":"sh/szqtcj6t","slide":6,"text":"Author / Paper / Attachment / Catalog 与对应 LibraryManager 功能","textPreview":"Author / Paper / Attachment / Catalog 与对应 LibraryManager 功能","textChars":59,"textLines":1,"bbox":[74,394,860,70]}
+{"kind":"textbox","id":"sh/3ex0nuxc","slide":6,"text":"NWAFU · C++ 面向对象综合训练","textPreview":"NWAFU · C++ 面向对象综合训练","textChars":20,"textLines":1,"bbox":[74,630,500,24]}
+{"kind":"notes","id":"nt/656kaw","slide":6,"text":"进入第2部分：个人负责部分分析。"}
+{"kind":"slide","id":"sl/mcf7z6","slide":7,"title":"个人负责部分分析","textShapes":14}
+{"kind":"shape","id":"sh/je9cvixc","slide":7,"bbox":[0,0,1280,10]}
+{"kind":"shape","id":"sh/8z25kb6x","slide":7,"bbox":[44,34,214,40]}
+{"kind":"textbox","id":"sh/1gvy90je","slide":7,"text":"个人负责部分分析","textPreview":"个人负责部分分析","textChars":8,"textLines":1,"bbox":[60,42,185,24]}
+{"kind":"textbox","id":"sh/q1orytsv","slide":7,"text":"西北农林科技大学","textPreview":"西北农林科技大学","textChars":8,"textLines":1,"bbox":[1010,42,210,24]}
+{"kind":"textbox","id":"sh/fmlkjm1c","slide":7,"text":"周生斌的个人分工","textPreview":"周生斌的个人分工","textChars":8,"textLines":1,"bbox":[56,92,1130,54]}
+{"kind":"shape","id":"sh/87ed8bat","slide":7,"bbox":[56,152,92,4]}
+{"kind":"textbox","id":"sh/xs72x4na","slide":7,"text":"西北农林科技大学 · 信息工程学院","textPreview":"西北农林科技大学 · 信息工程学院","textChars":17,"textLines":1,"bbox":[56,682,420,22]}
+{"kind":"textbox","id":"sh/qd4vmtwr","slide":7,"text":"07","textPreview":"07","textChars":2,"textLines":1,"bbox":[1178,680,48,22]}
+{"kind":"textbox","id":"sh/fyxobm58","slide":7,"text":"负责文献核心实体、附件与文献目录，并实现对应管理、关联和查询功能。","textPreview":"负责文献核心实体、附件与文献目录，并实现对应管理、关联和查询功能。","textChars":33,"textLines":1,"bbox":[64,184,1140,54]}
+{"kind":"shape","id":"sh/7mp0bi9s","slide":7,"bbox":[64,264,548,126]}
+{"kind":"shape","id":"sh/e1w7mp0b","slide":7,"bbox":[64,264,8,126]}
+{"kind":"textbox","id":"sh/psfil0rq","slide":7,"text":"实体类设计","textPreview":"实体类设计","textChars":5,"textLines":1,"bbox":[90,284,502,34]}
+{"kind":"textbox","id":"sh/w7mp0bi9","slide":7,"text":"设计 Author、Paper、Attachment 和 Catalog 的属性、访问接口及序列化方法。","textPreview":"设计 Author、Paper、Attachment 和 Catalog 的属性、访问接口及序列化方法。","textChars":52,"textLines":1,"bbox":[90,330,500,44]}
+{"kind":"shape","id":"sh/7adsji5s","slide":7,"bbox":[648,264,548,126]}
+{"kind":"shape","id":"sh/epkzupwb","slide":7,"bbox":[648,264,8,126]}
+{"kind":"textbox","id":"sh/pg3ex0nu","slide":7,"text":"关联关系维护","textPreview":"关联关系维护","textChars":6,"textLines":1,"bbox":[674,284,502,34]}
+{"kind":"textbox","id":"sh/wval87ed","slide":7,"text":"维护文献—作者、文献—附件和文献—目录之间的编号关联。","textPreview":"维护文献—作者、文献—附件和文献—目录之间的编号关联。","textChars":27,"textLines":1,"bbox":[674,330,500,44]}
+{"kind":"shape","id":"sh/36hcrmhk","slide":7,"bbox":[64,416,548,126]}
+{"kind":"shape","id":"sh/eloj2t83","slide":7,"bbox":[64,416,8,126]}
+{"kind":"textbox","id":"sh/mp0bi9s3","slide":7,"text":"检索与分类","textPreview":"检索与分类","textChars":5,"textLines":1,"bbox":[90,436,502,34]}
+{"kind":"textbox","id":"sh/bat47y1k","slide":7,"text":"实现按标题、作者、关键词检索，以及目录递归查询和文献归类。","textPreview":"实现按标题、作者、关键词检索，以及目录递归查询和文献归类。","textChars":29,"textLines":1,"bbox":[90,482,500,44]}
+{"kind":"shape","id":"sh/4vmtwra5","slide":7,"bbox":[648,416,548,126]}
+{"kind":"shape","id":"sh/tgfmlkjm","slide":7,"bbox":[648,416,8,126]}
+{"kind":"textbox","id":"sh/m1cfa9w3","slide":7,"text":"整合与调试","textPreview":"整合与调试","textChars":5,"textLines":1,"bbox":[674,436,502,34]}
+{"kind":"textbox","id":"sh/bm58z25k","slide":7,"text":"参与数据导入、文件读写、界面联调和 bug 修改。","textPreview":"参与数据导入、文件读写、界面联调和 bug 修改。","textChars":25,"textLines":1,"bbox":[674,482,500,44]}
+{"kind":"notes","id":"nt/mcf7z6","slide":7,"text":"本人的主要分工集中在Author、Paper、Attachment、Catalog 及相关业务。\n除类设计外，还参与 LibraryManager 对应功能、代码整合和调试。"}
+{"kind":"slide","id":"sl/ad0hpq","slide":8,"title":"个人负责部分分析","textShapes":7}
+{"kind":"shape","id":"sh/gvy90je9","slide":8,"bbox":[0,0,1280,10]}
+{"kind":"shape","id":"sh/ra5gbq1o","slide":8,"bbox":[44,34,214,40]}
+{"kind":"textbox","id":"sh/2p8nqxs7","slide":8,"text":"个人负责部分分析","textPreview":"个人负责部分分析","textChars":8,"textLines":1,"bbox":[60,42,185,24]}
+{"kind":"textbox","id":"sh/94fu18jq","slide":8,"text":"西北农林科技大学","textPreview":"西北农林科技大学","textChars":8,"textLines":1,"bbox":[1010,42,210,24]}
+{"kind":"textbox","id":"sh/kjm1cfa9","slide":8,"text":"负责模块的类设计","textPreview":"负责模块的类设计","textChars":8,"textLines":1,"bbox":[56,92,1130,54]}
+{"kind":"shape","id":"sh/r2p8nqxs","slide":8,"bbox":[56,152,92,4]}
+{"kind":"textbox","id":"sh/2hwfyxob","slide":8,"text":"西北农林科技大学 · 信息工程学院","textPreview":"西北农林科技大学 · 信息工程学院","textChars":17,"textLines":1,"bbox":[56,682,420,22]}
+{"kind":"textbox","id":"sh/9w3m94fu","slide":8,"text":"08","textPreview":"08","textChars":2,"textLines":1,"bbox":[1178,680,48,22]}
+{"kind":"textbox","id":"sh/ra5gbq1o","slide":8,"text":"核心接口、目录与文献对象","textPreview":"核心接口、目录与文献对象","textChars":12,"textLines":1,"bbox":[76,620,524,24]}
+{"kind":"textbox","id":"sh/gvy90je9","slide":8,"text":"文献、附件与作者关联","textPreview":"文献、附件与作者关联","textChars":10,"textLines":1,"bbox":[680,620,524,24]}
+{"kind":"image","id":"im/1w7mp0bi","slide":8,"name":"","geometry":"roundRect","alt":"核心实体与管理类 UML 图上半部分","bbox":[64,184,548,426]}
+{"kind":"image","id":"im/d0z61032","slide":8,"name":"","geometry":"roundRect","alt":"核心实体与管理类 UML 图下半部分","bbox":[668,184,548,426]}
+{"kind":"notes","id":"nt/ad0hpq","slide":8,"text":"本部分以 Serializable 接口统一序列化行为。\nPaper 通过编号关联 Author、Attachment 和 Source，Catalog 通过父子编号形成目录树。\nLibraryManager 负责对象生命周期和关联一致性。"}
+{"kind":"slide","id":"sl/8tbks2","slide":9,"title":"个人负责部分分析","textShapes":8}
+{"kind":"shape","id":"sh/4vmtwra5","slide":9,"bbox":[0,0,1280,10]}
+{"kind":"shape","id":"sh/bat47y1k","slide":9,"bbox":[44,34,214,40]}
+{"kind":"textbox","id":"sh/mp0bi9s3","slide":9,"text":"个人负责部分分析","textPreview":"个人负责部分分析","textChars":8,"textLines":1,"bbox":[60,42,185,24]}
+{"kind":"textbox","id":"sh/tsvu9kni","slide":9,"text":"西北农林科技大学","textPreview":"西北农林科技大学","textChars":8,"textLines":1,"bbox":[1010,42,210,24]}
+{"kind":"textbox","id":"sh/47y1kre1","slide":9,"text":"本人负责功能的运行效果","textPreview":"本人负责功能的运行效果","textChars":11,"textLines":1,"bbox":[56,92,1130,54]}
+{"kind":"shape","id":"sh/bm58z25k","slide":9,"bbox":[56,152,92,4]}
+{"kind":"textbox","id":"sh/m1cfa9w3","slide":9,"text":"西北农林科技大学 · 信息工程学院","textPreview":"西北农林科技大学 · 信息工程学院","textChars":17,"textLines":1,"bbox":[56,682,420,22]}
+{"kind":"textbox","id":"sh/twra5gbq","slide":9,"text":"09","textPreview":"09","textChars":2,"textLines":1,"bbox":[1178,680,48,22]}
+{"kind":"textbox","id":"sh/4byhgn29","slide":9,"text":"文献新增与信息录入","textPreview":"文献新增与信息录入","textChars":9,"textLines":1,"bbox":[72,442,532,24]}
+{"kind":"textbox","id":"sh/twra5gbq","slide":9,"text":"作者信息与关联文献","textPreview":"作者信息与关联文献","textChars":9,"textLines":1,"bbox":[656,442,532,24]}
+{"kind":"textbox","id":"sh/mhk3q5o7","slide":9,"text":"多级目录与文献归类","textPreview":"多级目录与文献归类","textChars":9,"textLines":1,"bbox":[364,651,552,24]}
+{"kind":"image","id":"im/5gbq1ory","slide":9,"name":"","geometry":"roundRect","alt":"新增文献","bbox":[58,184,560,250]}
+{"kind":"image","id":"im/18jqh0fe","slide":9,"name":"","geometry":"roundRect","alt":"作者详情","bbox":[642,184,560,250]}
+{"kind":"image","id":"im/8nqxs72x","slide":9,"name":"","geometry":"roundRect","alt":"目录管理","bbox":[350,462,580,182]}
+{"kind":"notes","id":"nt/8tbks2","slide":9,"text":"展示三个代表性功能：文献新增、作者关联、目录管理。\n界面层通过 LibraryManager 调用核心对象，不直接维护业务数据。"}
+{"kind":"slide","id":"sl/b3pffg","slide":10,"title":"PART 03","textShapes":4}
+{"kind":"shape","id":"sh/w3m94fu1","slide":10,"bbox":[0,0,1280,18]}
+{"kind":"textbox","id":"sh/3itgfmlk","slide":10,"text":"PART 03","textPreview":"PART 03","textChars":7,"textLines":1,"bbox":[74,176,310,62]}
+{"kind":"textbox","id":"sh/ex0nuxc3","slide":10,"text":"具体实现思路","textPreview":"具体实现思路","textChars":6,"textLines":1,"bbox":[74,264,920,74]}
+{"kind":"shape","id":"sh/lwval87e","slide":10,"bbox":[74,362,120,6]}
+{"kind":"textbox","id":"sh/wb2hwfyx","slide":10,"text":"围绕核心类、对象关联、查询和持久化展开","textPreview":"围绕核心类、对象关联、查询和持久化展开","textChars":19,"textLines":1,"bbox":[74,394,860,70]}
+{"kind":"textbox","id":"sh/3q5o7qpg","slide":10,"text":"NWAFU · C++ 面向对象综合训练","textPreview":"NWAFU · C++ 面向对象综合训练","textChars":20,"textLines":1,"bbox":[74,630,500,24]}
+{"kind":"notes","id":"nt/b3pffg","slide":10,"text":"进入第3部分：具体实现思路。"}
+{"kind":"slide","id":"sl/gen5fw","slide":11,"title":"具体实现思路","textShapes":17}
+{"kind":"shape","id":"sh/knih4byh","slide":11,"bbox":[0,0,1280,10]}
+{"kind":"shape","id":"sh/v6psfil0","slide":11,"bbox":[44,34,214,40]}
+{"kind":"textbox","id":"sh/2lszqtcj","slide":11,"text":"具体实现思路","textPreview":"具体实现思路","textChars":6,"textLines":1,"bbox":[60,42,185,24]}
+{"kind":"textbox","id":"sh/d0z61032","slide":11,"text":"西北农林科技大学","textPreview":"西北农林科技大学","textChars":8,"textLines":1,"bbox":[1010,42,210,24]}
+{"kind":"textbox","id":"sh/kf6dcbul","slide":11,"text":"对象关联、递归查询与导入映射","textPreview":"对象关联、递归查询与导入映射","textChars":14,"textLines":1,"bbox":[56,92,1130,54]}
+{"kind":"shape","id":"sh/vu9knih4","slide":11,"bbox":[56,152,92,4]}
+{"kind":"textbox","id":"sh/29gr2p8n","slide":11,"text":"西北农林科技大学 · 信息工程学院","textPreview":"西北农林科技大学 · 信息工程学院","textChars":17,"textLines":1,"bbox":[56,682,420,22]}
+{"kind":"textbox","id":"sh/donyd0z6","slide":11,"text":"11","textPreview":"11","textChars":2,"textLines":1,"bbox":[1178,680,48,22]}
+{"kind":"shape","id":"sh/k3q5o7qp","slide":11,"bbox":[60,192,368,410]}
+{"kind":"shape","id":"sh/at47y1kr","slide":11,"bbox":[82,214,54,54]}
+{"kind":"textbox","id":"sh/3ex0nuxc","slide":11,"text":"1","textPreview":"1","textChars":1,"textLines":1,"bbox":[82,222,54,34]}
+{"kind":"textbox","id":"sh/szqtcj6t","slide":11,"text":"关联一致性","textPreview":"关联一致性","textChars":5,"textLines":1,"bbox":[154,218,244,38]}
+{"kind":"textbox","id":"sh/lkjm1cfa","slide":11,"text":"删除作者时同步清理文献和作者目录中的编号；新增或删除附件时同步修改 Paper 的 attachmentIds。","textPreview":"删除作者时同步清理文献和作者目录中的编号；新增或删除附件时同步修改 Paper 的 attachmentIds。","textChars":56,"textLines":1,"bbox":[88,294,312,192]}
+{"kind":"shape","id":"sh/ahoza1gv","slide":11,"bbox":[88,514,312,58]}
+{"kind":"textbox","id":"sh/32lszqtc","slide":11,"text":"避免悬空编号与关系不一致","textPreview":"避免悬空编号与关系不一致","textChars":12,"textLines":1,"bbox":[102,529,284,30]}
+{"kind":"shape","id":"sh/sneloj2t","slide":11,"bbox":[462,192,368,410]}
+{"kind":"shape","id":"sh/l87ed8ba","slide":11,"bbox":[484,214,54,54]}
+{"kind":"textbox","id":"sh/e9cvixcz","slide":11,"text":"2","textPreview":"2","textChars":1,"textLines":1,"bbox":[484,222,54,34]}
+{"kind":"textbox","id":"sh/3q5o7qpg","slide":11,"text":"目录递归查询","textPreview":"目录递归查询","textChars":6,"textLines":1,"bbox":[556,218,244,38]}
+{"kind":"textbox","id":"sh/vmtwra5g","slide":11,"text":"使用深度优先搜索遍历当前目录及全部子目录，并利用 visited 集合对文献编号去重。","textPreview":"使用深度优先搜索遍历当前目录及全部子目录，并利用 visited 集合对文献编号去重。","textChars":43,"textLines":1,"bbox":[490,294,312,192]}
+{"kind":"shape","id":"sh/61032lsz","slide":11,"bbox":[490,514,312,58]}
+{"kind":"textbox","id":"sh/dsji5sne","slide":11,"text":"复杂度约为 O(C + R)","textPreview":"复杂度约为 O(C + R)","textChars":14,"textLines":1,"bbox":[504,529,284,30]}
+{"kind":"shape","id":"sh/o7qpg3ex","slide":11,"bbox":[864,192,368,410]}
+{"kind":"shape","id":"sh/vy90je9c","slide":11,"bbox":[886,214,54,54]}
+{"kind":"textbox","id":"sh/6dcbulwv","slide":11,"text":"3","textPreview":"3","textChars":1,"textLines":1,"bbox":[886,222,54,34]}
+{"kind":"textbox","id":"sh/d4vmtwra","slide":11,"text":"导入编号重映射","textPreview":"导入编号重映射","textChars":7,"textLines":1,"bbox":[958,218,244,38]}
+{"kind":"textbox","id":"sh/oj2t83it","slide":11,"text":"为作者、文献和目录建立旧 ID 到新 ID 的映射，按依赖顺序恢复跨对象关联。","textPreview":"为作者、文献和目录建立旧 ID 到新 ID 的映射，按依赖顺序恢复跨对象关联。","textChars":39,"textLines":1,"bbox":[892,294,312,192]}
+{"kind":"shape","id":"sh/z25kb6xk","slide":11,"bbox":[892,514,312,58]}
+{"kind":"textbox","id":"sh/6hcrmhk3","slide":11,"text":"合并数据时避免 ID 冲突","textPreview":"合并数据时避免 ID 冲突","textChars":13,"textLines":1,"bbox":[906,529,284,30]}
+{"kind":"notes","id":"nt/gen5fw","slide":11,"text":"重点说明三个最能体现本人工作量和面向对象思想的算法。\n这些逻辑均集中在 LibraryManager 中，界面层只负责触发操作。"}
+{"kind":"slide","id":"sl/exmx4a","slide":12,"title":"调试、优点与不足","textShapes":12}
+{"kind":"shape","id":"sh/zupwb2hw","slide":12,"bbox":[0,0,1280,10]}
+{"kind":"shape","id":"sh/sfil0rqd","slide":12,"bbox":[44,34,214,40]}
+{"kind":"textbox","id":"sh/h0fepkzu","slide":12,"text":"调试、优点与不足","textPreview":"调试、优点与不足","textChars":8,"textLines":1,"bbox":[60,42,185,24]}
+{"kind":"textbox","id":"sh/al87ed8b","slide":12,"text":"西北农林科技大学","textPreview":"西北农林科技大学","textChars":8,"textLines":1,"bbox":[1010,42,210,24]}
+{"kind":"textbox","id":"sh/z61032ls","slide":12,"text":"调试结果与项目评价","textPreview":"调试结果与项目评价","textChars":9,"textLines":1,"bbox":[56,92,1130,54]}
+{"kind":"shape","id":"sh/orytsvu9","slide":12,"bbox":[56,152,92,4]}
+{"kind":"textbox","id":"sh/hcrmhk3q","slide":12,"text":"西北农林科技大学 · 信息工程学院","textPreview":"西北农林科技大学 · 信息工程学院","textChars":17,"textLines":1,"bbox":[56,682,420,22]}
+{"kind":"textbox","id":"sh/6xkf6dcb","slide":12,"text":"12","textPreview":"12","textChars":2,"textLines":1,"bbox":[1178,680,48,22]}
+{"kind":"shape","id":"sh/n29gr2p8","slide":12,"bbox":[530,196,326,184]}
+{"kind":"shape","id":"sh/yhgn29gr","slide":12,"bbox":[530,196,8,184]}
+{"kind":"textbox","id":"sh/58z25kb6","slide":12,"text":"项目优点","textPreview":"项目优点","textChars":4,"textLines":1,"bbox":[556,216,280,34]}
+{"kind":"textbox","id":"sh/gn29gr2p","slide":12,"text":"类职责清晰；文献关系完整；目录查询直观；支持本地文件与元数据识别。","textPreview":"类职责清晰；文献关系完整；目录查询直观；支持本地文件与元数据识别。","textChars":33,"textLines":1,"bbox":[556,262,278,102]}
+{"kind":"shape","id":"sh/nuxc3ylc","slide":12,"bbox":[884,196,326,184]}
+{"kind":"shape","id":"sh/y90je9cv","slide":12,"bbox":[884,196,8,184]}
+{"kind":"textbox","id":"sh/5wjudg7a","slide":12,"text":"存在不足","textPreview":"存在不足","textChars":4,"textLines":1,"bbox":[910,216,280,34]}
+{"kind":"textbox","id":"sh/gbq1oryt","slide":12,"text":"线性搜索在大数据量下效率有限；文本分隔格式仍需更严格的转义处理。","textPreview":"线性搜索在大数据量下效率有限；文本分隔格式仍需更严格的转义处理。","textChars":32,"textLines":1,"bbox":[910,262,278,102]}
+{"kind":"shape","id":"sh/nqxs72x4","slide":12,"bbox":[530,404,680,152]}
+{"kind":"shape","id":"sh/u54zidon","slide":12,"bbox":[530,404,8,152]}
+{"kind":"textbox","id":"sh/29gr2p8n","slide":12,"text":"后续改进方向","textPreview":"后续改进方向","textChars":6,"textLines":1,"bbox":[556,424,634,34]}
+{"kind":"textbox","id":"sh/vu9knih4","slide":12,"text":"增加索引或数据库存储；完善异常提示和自动化测试；增强重复文献检测与数据备份。","textPreview":"增加索引或数据库存储；完善异常提示和自动化测试；增强重复文献检测与数据备份。","textChars":38,"textLines":1,"bbox":[556,470,632,70]}
+{"kind":"textbox","id":"sh/kf6dcbul","slide":12,"text":"结论：主要功能运行稳定，达到面向对象综合训练要求。","textPreview":"结论：主要功能运行稳定，达到面向对象综合训练要求。","textChars":25,"textLines":1,"bbox":[530,588,680,34]}
+{"kind":"table","id":"tb/29gr2p8n","slide":12,"name":"","rows":5,"cols":2,"preview":"测试项目 | 结果","bbox":[62,196,430,326]}
+{"kind":"notes","id":"nt/exmx4a","slide":12,"text":"从核心功能、关联关系、持久化和文件操作四个方面进行了测试。\n系统基本达到预期目标，同时仍有性能、异常处理和数据安全方面的改进空间。"}
+{"kind":"slide","id":"sl/tcpfe3","slide":13,"title":"汇报结束","textShapes":5}
+{"kind":"shape","id":"sh/7mp0bi9s","slide":13,"bbox":[0,0,1280,18]}
+{"kind":"textbox","id":"sh/w7mp0bi9","slide":13,"text":"汇报结束","textPreview":"汇报结束","textChars":4,"textLines":1,"bbox":[0,174,1280,72]}
+{"kind":"textbox","id":"sh/psfil0rq","slide":13,"text":"感谢各位老师聆听！","textPreview":"感谢各位老师聆听！","textChars":9,"textLines":1,"bbox":[0,268,1280,60]}
+{"kind":"shape","id":"sh/epkzupwb","slide":13,"bbox":[520,360,240,5]}
+{"kind":"textbox","id":"sh/7adsji5s","slide":13,"text":"周生斌 · 2025013531","textPreview":"周生斌 · 2025013531","textChars":16,"textLines":1,"bbox":[0,402,1280,36]}
+{"kind":"textbox","id":"sh/wval87ed","slide":13,"text":"指导教师：胡钰","textPreview":"指导教师：胡钰","textChars":7,"textLines":1,"bbox":[0,454,1280,30]}
+{"kind":"textbox","id":"sh/pg3ex0nu","slide":13,"text":"Questions & Answers","textPreview":"Questions & Answers","textChars":19,"textLines":1,"bbox":[0,604,1280,28]}
+{"kind":"notes","id":"nt/tcpfe3","slide":13,"text":"我的汇报完毕，感谢各位老师，请老师批评指正。"}

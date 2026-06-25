@@ -1,0 +1,24 @@
+digraph ShaoUML {
+  graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.35", ranksep="0.6", fontname="Microsoft YaHei"];
+  node [shape=record, style="rounded,filled", fillcolor="#F8FAFC", color="#475569", fontname="Consolas", fontsize=12, margin="0.10,0.07"];
+  edge [color="#64748B", fontname="Microsoft YaHei", fontsize=10, arrowsize=0.8];
+
+  Serializable [fillcolor="#E0F2FE", label="{Serializable\n\<interface\>|+ serialize() : string\l+ deserialize(data) : void\l}"];
+  Source [fillcolor="#DCFCE7", label="{Source\n\<abstract\>|# id : IdType\l# shortName : string\l# fullName : string\l# field : string\l# publisher : string\l# publisherAddress : string\l# retrievalType : string\l# remark : string\l|+ getType() : string\l+ getters/setters\l}"];
+  Journal [label="{Journal|- latestImpactFactor : double\l|+ getType() : string\l+ get/setImpactFactor()\l+ serialize()/deserialize()\l}"];
+  Conference [label="{Conference|- meetingAddress : string\l|+ getType() : string\l+ get/setMeetingAddress()\l+ serialize()/deserialize()\l}"];
+  AuthorCatalog [label="{AuthorCatalog|- id : IdType\l- name : string\l- level : int\l- description : string\l- parentId : IdType\l- childIds : vector\<IdType\>\l- authorIds : vector\<IdType\>\l|+ add/removeChildId()\l+ add/removeAuthorId()\l+ isRoot() : bool\l+ serialize()/deserialize()\l}"];
+  Author [fillcolor="#F1F5F9", label="{Author\n\<external entity\>|- id : IdType\l- name : string\l}"];
+  Paper [fillcolor="#F1F5F9", label="{Paper\n\<external entity\>|- sourceId : IdType\l}"];
+  LibraryManager [fillcolor="#FEF3C7", label="{LibraryManager\n\<singleton\>|- sources : map\<IdType, shared_ptr\<Source\>\>\l- authorCatalogs : map\l- nextSourceId : IdType\l- nextAuthorCatalogId : IdType\l|+ add/remove/update/findSource()\l+ add/remove/update/findAuthorCatalog()\l+ add/removeAuthorToCatalog()\l+ getAuthorsInCatalog()\l+ getPapersBySource()\l+ save/load/import...()\l}"];
+
+  Serializable -> Source [arrowhead=empty, style=dashed];
+  Serializable -> AuthorCatalog [arrowhead=empty, style=dashed];
+  Source -> Journal [arrowhead=empty];
+  Source -> Conference [arrowhead=empty];
+  LibraryManager -> Source [arrowhead=diamond, label=" polymorphic manage"];
+  LibraryManager -> AuthorCatalog [arrowhead=diamond, label=" manages"];
+  AuthorCatalog -> AuthorCatalog [label=" parent / children"];
+  AuthorCatalog -> Author [label=" authorIds  *..*"];
+  Paper -> Source [style=dashed, label=" sourceId"];
+}

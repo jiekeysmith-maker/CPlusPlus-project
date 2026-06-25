@@ -1,0 +1,28 @@
+digraph ZhouUML {
+  graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.35", ranksep="0.6", fontname="Microsoft YaHei"];
+  node [shape=record, style="rounded,filled", fillcolor="#F8FAFC", color="#475569", fontname="Consolas", fontsize=12, margin="0.10,0.07"];
+  edge [color="#64748B", fontname="Microsoft YaHei", fontsize=10, arrowsize=0.8];
+
+  Serializable [fillcolor="#E0F2FE", label="{Serializable\n\<interface\>|+ serialize() : string\l+ deserialize(data) : void\l}"];
+  Author [label="{Author|- id : IdType\l- name : string\l- gender : string\l- affiliation : string\l- email : string\l- researchAreas : vector\<string\>\l|+ getters/setters\l+ serialize() : string\l+ deserialize(data) : void\l}"];
+  Paper [label="{Paper|- id : IdType\l- code : string\l- title : string\l- keywords : vector\<string\>\l- abstract : string\l- publishDate : string\l- sourceId : IdType\l- authorIds : vector\<IdType\>\l- attachmentIds : vector\<IdType\>\l- filePath : string\l- uploadTime : string\l|+ addAuthorId(id)\l+ addAttachmentId(id)\l+ serialize() : string\l+ deserialize(data) : void\l}"];
+  Attachment [label="{Attachment|- id : IdType\l- name : string\l- paperId : IdType\l- content : string\l- filePath : string\l|+ getters/setters\l+ serialize() : string\l+ deserialize(data) : void\l}"];
+  Catalog [label="{Catalog|- id : IdType\l- name : string\l- level : int\l- parentId : IdType\l- childIds : vector\<IdType\>\l- paperIds : vector\<IdType\>\l|+ add/removeChildId()\l+ add/removePaperId()\l+ isRoot() : bool\l+ serialize()/deserialize()\l}"];
+  Source [fillcolor="#F1F5F9", label="{Source\n\<external abstract\>|+ getType() : string\l}"];
+  LibraryManager [fillcolor="#FEF3C7", label="{LibraryManager\n\<singleton\>|- authors : map\l- papers : map\l- attachments : map\l- catalogs : map\l- nextId counters\l|+ getInstance()\l+ add/remove/update/find...()\l+ searchPapers...()\l+ getPapersInCatalog()\l+ save/load/import...()\l}"];
+
+  Serializable -> Author [arrowhead=empty, style=dashed];
+  Serializable -> Paper [arrowhead=empty, style=dashed];
+  Serializable -> Attachment [arrowhead=empty, style=dashed];
+  Serializable -> Catalog [arrowhead=empty, style=dashed];
+
+  LibraryManager -> Author [arrowhead=diamond, label=" manages"];
+  LibraryManager -> Paper [arrowhead=diamond, label=" manages"];
+  LibraryManager -> Attachment [arrowhead=diamond, label=" manages"];
+  LibraryManager -> Catalog [arrowhead=diamond, label=" manages"];
+  Paper -> Author [label=" authorIds  *..*"];
+  Paper -> Attachment [arrowhead=odiamond, label=" attachmentIds  1..*"];
+  Paper -> Source [style=dashed, label=" sourceId"];
+  Catalog -> Paper [label=" paperIds  *..*"];
+  Catalog -> Catalog [label=" parent / children"];
+}

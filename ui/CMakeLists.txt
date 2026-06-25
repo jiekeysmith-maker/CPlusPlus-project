@@ -49,16 +49,6 @@ set(PROJECT_SOURCES
         src/core/LibraryManager.cpp
         src/core/StoragePaths.h
         src/core/StoragePaths.cpp
-        src/pages/authorpage.h
-        src/pages/authorpage.cpp
-        src/pages/sourcepage.h
-        src/pages/sourcepage.cpp
-        src/pages/paperpage.h
-        src/pages/paperpage.cpp
-        src/pages/attachmentpage.h
-        src/pages/attachmentpage.cpp
-        src/pages/catalogpage.h
-        src/pages/catalogpage.cpp
         src/dialogs/authordialog.h
         src/dialogs/authordialog.cpp
         src/dialogs/sourcedialog.h
@@ -67,16 +57,11 @@ set(PROJECT_SOURCES
         src/dialogs/paperdialog.cpp
         src/dialogs/pdfimportpreviewdialog.h
         src/dialogs/pdfimportpreviewdialog.cpp
-        src/dialogs/attachmentdialog.h
-        src/dialogs/attachmentdialog.cpp
-        src/dialogs/catalogdialog.h
-        src/dialogs/catalogdialog.cpp
 )
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/app
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/pages
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs
 )
 
